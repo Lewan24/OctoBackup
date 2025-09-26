@@ -11,18 +11,7 @@ public sealed class ServerBackupsConfiguration
     [NotMapped] private string BackupSaveDirectory { get; } = GetBackupDirectory();
 
     private static string GetBackupDirectory()
-    {
-        if (OperatingSystem.IsWindows())
-            return Path.Combine(
-                Path.GetDirectoryName(Environment.ProcessPath)!,
-                "backups");
-        
-        if (OperatingSystem.IsLinux())
-            return "/backups";
-
-        throw new PlatformNotSupportedException("Unsupported OS");
-    }
-
+        => Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "OctoBackup", "Backups");
 
     /// <summary>
     ///     Create required directories for provided server and database
