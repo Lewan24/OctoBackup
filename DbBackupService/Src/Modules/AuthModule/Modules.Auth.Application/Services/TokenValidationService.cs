@@ -9,9 +9,13 @@ namespace Modules.Auth.Application.Services;
 internal class TokenValidationService(IUserTokenService tokensRepoService, ILogger<TokenValidationService> logger)
     : ITokenValidationService
 {
+    // TODO: Add this to configurable section in admin's configuration panel
+    private readonly bool _enableTokenLogging = false;
+    
     public OneOf<True, False> IsValid(string? token, string? userEmail)
     {
-        logger.LogInformation("Validating token {Token} for user {Email}...", token, userEmail);
+        if(_enableTokenLogging)
+            logger.LogInformation("Validating token {Token} for user {Email}...", token, userEmail);
 
         if (string.IsNullOrWhiteSpace(token) || string.IsNullOrWhiteSpace(userEmail))
         {
@@ -19,7 +23,8 @@ internal class TokenValidationService(IUserTokenService tokensRepoService, ILogg
             return new False();
         }
 
-        logger.LogDebug("Searching DB with passed token...");
+        if(_enableTokenLogging)
+            logger.LogDebug("Searching DB with passed token...");
         var userToken = tokensRepoService.GetUserTokens(t =>
             t.Token == token &&
             t.Email?.ToUpper() == userEmail.ToUpper()).FirstOrDefault();
@@ -42,7 +47,8 @@ internal class TokenValidationService(IUserTokenService tokensRepoService, ILogg
             return new False();
         }
 
-        logger.LogInformation("Token {Token} for user {Email} is Valid.", token, userEmail);
+        if(_enableTokenLogging)
+            logger.LogInformation("Token {Token} for user {Email} is Valid.", token, userEmail);
         return new True();
     }
 }

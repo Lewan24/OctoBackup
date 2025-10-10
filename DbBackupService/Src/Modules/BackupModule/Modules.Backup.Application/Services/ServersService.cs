@@ -76,7 +76,8 @@ public class ServersService(
                 DbName = server.DbName,
                 DbType = server.DbType,
                 DbUser = server.DbUser,
-                IsTunnelRequired = server.IsTunnelRequired
+                IsTunnelRequired = server.IsTunnelRequired,
+                AutoTestBackupsConfigId = server.AutoTestBackupsConfigId
             };
 
             var dbTunnel = db.DbServerTunnels.FirstOrDefault(x => x.Id == server.TunnelId);
@@ -212,6 +213,16 @@ public class ServersService(
             IsDisabled = false
         };
 
+        var serverAutoTestBackupConfig = new AutomaticBackupTestConfig
+        {
+            Id = Guid.CreateVersion7(),
+            // TODO: Change this to global setting that is configurable in admin's config panel
+            IsEnabled = false,
+            ServerId = dbServer.Id
+        };
+        
+        dbServer.AutoTestBackupsConfigId = serverAutoTestBackupConfig.Id;
+        
         // 3. Obsługa tunelu (opcjonalna)
         if (newServer.IsTunnelRequired)
         {
@@ -243,7 +254,8 @@ public class ServersService(
 
         // 4. Zapis serwera
         db.DbConnections.Add(dbServer);
-
+        db.AutomaticBackupTestConfigs.Add(serverAutoTestBackupConfig);
+        
         if (string.IsNullOrWhiteSpace(identityName))
             return "Can't access username";
 
@@ -638,6 +650,9 @@ public class ServersService(
 
             var serverBackupConfig = db.Configurations.FirstOrDefault(x => x.ServerId == serverId);
             if (serverBackupConfig is not null) db.Configurations.Remove(serverBackupConfig);
+            
+            var serverAutoTestConfig = db.AutomaticBackupTestConfigs.FirstOrDefault(x => x.ServerId == serverId);
+            if (serverAutoTestConfig is not null) db.AutomaticBackupTestConfigs.Remove(serverAutoTestConfig);
 
             var backups = db.Backups.Where(x => x.ServerConnectionId == server.Id);
             if (backups.Any())
@@ -655,6 +670,37 @@ public class ServersService(
             return e.Message;
         }
 
+        return new Success();
+    }
+
+
+    public async Task<OneOf<AutoTestBackupConfigDto, string>> GetAutoTestConfig(Guid configId)
+    {
+        if (configId == Guid.Empty)
+            return "Invalid config id";
+
+        logger.LogInformation("Checking if config [{ConfigId}] exists...", configId);
+        
+        var config = await db.AutomaticBackupTestConfigs.FindAsync(configId);
+        if (config is null)
+            return "Can't find config";
+
+        return new AutoTestBackupConfigDto
+        {
+            Id = config.Id,
+            IsEnabled = config.IsEnabled
+        };
+    }
+
+    public async Task<OneOf<Success, string>> EditAutoTestConfig(AutoTestBackupConfigDto config)
+    {
+        var dbConfig = await db.AutomaticBackupTestConfigs.FindAsync(config.Id);
+        if (dbConfig is null)
+            return "Can't find config";
+
+        dbConfig.IsEnabled = config.IsEnabled;
+        await db.SaveChangesAsync();
+        
         return new Success();
     }
 }

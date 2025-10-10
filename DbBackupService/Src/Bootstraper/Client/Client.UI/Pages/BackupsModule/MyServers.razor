@@ -91,6 +91,9 @@
                             <MudMenuItem Disabled="@_isProcessing" OnClick="@(() => PerformServerBackup(context.Id))">
                                 Perform Backup
                             </MudMenuItem>
+                            <MudMenuItem Disabled="@_isProcessing" OnClick="@(() => EditTestsConfig(context.AutoTestBackupsConfigId))">
+                                Auto Tests Configuration
+                            </MudMenuItem>
                         </ChildContent>
                     </MudMenu>
                 </MudTd>
@@ -236,4 +239,13 @@
         _isProcessing = false;
     }
 
+    private async Task EditTestsConfig(Guid autoTestConfigId)
+    {
+        var parameters = new DialogParameters<EditServerAutoTestConfigurationDialog>
+        {
+            { x => x.ConfigurationId, autoTestConfigId }
+        };
+
+        await DialogService.ShowAsync<EditServerAutoTestConfigurationDialog>($"Server Tests Configuration", parameters);
+    }
 }

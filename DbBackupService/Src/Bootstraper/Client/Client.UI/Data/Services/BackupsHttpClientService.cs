@@ -70,4 +70,14 @@ public class BackupsHttpClientService(TokenHttpClientService api)
     {
         return await api.PostAsync("/api/backups/PerformBackup", serverId);
     }
+    
+    public async Task<OneOf<AutoTestBackupConfigDto, string>> FetchAutoTestBackupConfig(Guid configurationId)
+    {
+        return await api.PostAsync<AutoTestBackupConfigDto, Guid>("/api/servers/FetchAutoTestConfig", configurationId);
+    }
+    
+    public async Task<OneOf<Success, string>> EditAutoTestBackupConfig(AutoTestBackupConfigDto config)
+    {
+        return await api.PostAsync("/api/servers/EditAutoTestConfig", config);
+    }
 }

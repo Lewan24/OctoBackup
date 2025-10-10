@@ -16,7 +16,7 @@ public class BackupWorker(IServiceScopeFactory scopeFactory, ILogger<BackupWorke
         logger.LogInformation("Running backup worker in 20 seconds...");
         await Task.Delay(TimeSpan.FromSeconds(20), stoppingToken);
 
-        logger.LogInformation("Worker will run each 10 seconds from now...");
+        logger.LogInformation("Worker will run each {Interval} minutes from now...", _interval.Minutes);
         while (await timer.WaitForNextTickAsync(stoppingToken))
             try
             {

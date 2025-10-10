@@ -16,5 +16,5 @@ public record ServerConnectionDto
     public bool IsTunnelRequired { get; set; }
 
     public ServerTunnelDto? Tunnel { get; set; }
-    //public Guid AutoTestBackupsConfigId { get; set; }
+    public Guid AutoTestBackupsConfigId { get; set; }
 }
