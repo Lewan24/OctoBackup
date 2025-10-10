@@ -1,6 +1,0 @@
-@Server_Api_HostAddress = http://localhost:7001
-
-GET {{Server_Api_HostAddress}}/backup/Test
-Accept: application/json
-
-###

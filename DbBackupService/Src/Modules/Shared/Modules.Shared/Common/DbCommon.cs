@@ -7,17 +7,7 @@ public static class DbCommon
     public static readonly string DbPath = Path.Join(DbFolder, "OctoBackup.db");
 
     private static string GetDbDirectory()
-    {
-        if (OperatingSystem.IsWindows())
-            return Path.Combine(
-                Path.GetDirectoryName(Environment.ProcessPath)!,
-                "db");
-        
-        if (OperatingSystem.IsLinux())
-            return "/db";
-
-        throw new PlatformNotSupportedException("Unsupported OS");
-    }
+        => Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "OctoBackup");
     
     public static void CreateDbDirectoryIfNotExists()
     {

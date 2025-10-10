@@ -59,6 +59,12 @@ internal static class ServersEndpoints
 
         api.MapPost("TestServerConnection", ServersOperations.TestServerConnection)
             .WithSummary("Test server connection and execute test query to check communication with DB");
+        
+        api.MapPost("FetchAutoTestConfig", ServersOperations.GetAutoTestConfig)
+            .WithSummary("Get specified server's AutoTest configuration");
+        
+        api.MapPost("EditAutoTestConfig", ServersOperations.EditAutoTestConfig)
+            .WithSummary("Edit provided server's  AutoTest configuration");
 
         return app;
     }
@@ -179,4 +185,10 @@ internal abstract class ServersOperations
     {
         return await CallFuncAndReturnIResult(service.TestServerConnection, serverId);
     }
+
+    public static async Task<IResult> GetAutoTestConfig(HttpContext context, [FromServices] ServersService service, [FromBody] Guid configurationId) 
+        => await CallFuncAndReturnIResult(service.GetAutoTestConfig, configurationId);
+
+    public static async Task<IResult> EditAutoTestConfig(HttpContext context, [FromServices] ServersService service, [FromBody] AutoTestBackupConfigDto config) 
+        => await CallFuncAndReturnIResult(service.EditAutoTestConfig, config);
 }

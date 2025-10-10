@@ -282,7 +282,7 @@ internal sealed class DbBackupService(
                         Id = Guid.CreateVersion7(),
                         CreatedOn = DateTime.Now,
                         ServerConnectionId = db.GetServerId(),
-                        Name = $"{serverConn.ServerHost}:{serverConn.ServerPort}_{serverConn.DbName}",
+                        Name = $"{serverConn.ServerHost} -> {serverConn.ServerPort} -> {serverConn.DbName}",
                         FilePath = ""
                     };
 

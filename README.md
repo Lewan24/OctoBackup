@@ -1,4 +1,4 @@
-# 💾 DatabasesBackupServiceDotNet  
+# 💾 OctoBackup  
 
 [🇵🇱 Read in Polish](README_PL.md)
 
@@ -15,7 +15,7 @@
 
 ---
 
-**DatabasesBackupServiceDotNet** is an open-source, containerized application built with **.NET 9 Blazor WebAssembly** using a modular monolith architecture.  
+**OctoBackup** is an open-source, containerized application built with **.NET 9 Blazor WebAssembly** using a modular monolith architecture.  
 The application allows **centralized management of database backups across multiple servers** – currently supporting **MySQL**, **PostgreSQL** and **MS SQL Server**.  
 
 ---
@@ -53,7 +53,7 @@ The application allows **centralized management of database backups across multi
 
 ## 🚀 Setup & Configuration  
 
-Go to the **WIKI** section and follow the setup instructions.  
+Go to the **[WIKI](https://github.com/Lewan24/OctoBackup/wiki)** section and follow the setup instructions.  
 
 ---
 

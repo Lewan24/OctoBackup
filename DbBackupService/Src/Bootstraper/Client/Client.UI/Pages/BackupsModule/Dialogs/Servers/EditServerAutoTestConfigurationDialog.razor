@@ -1,0 +1,90 @@
+@using Client.UI.Data.Services
+@using Modules.Backup.Shared.Dtos
+
+@inject BackupsHttpClientService Service
+@inject ISnackbar Snackbar
+
+<MudDialog>
+    <DialogContent>
+        <MudCard Elevation="3" Class="pa-4 rounded-2xl mb-5">
+            <MudCardContent Class="d-flex flex-column align-center">
+                @if (_config is null)
+                {
+                    <MudProgressCircular Indeterminate="true" Color="Color.Primary"/>
+                    <MudText Align="Align.Center">Searching for specified server configuration...</MudText>
+                }
+                else
+                {
+                    <MudGrid Justify="Justify.Center" Spacing="4">
+                        <MudItem xs="12" Class="d-flex flex-column justify-center align-center">
+                            <MudCheckBox T="bool" @bind-Value="_config.IsEnabled" Label="Enable Automatic Tests" LabelPlacement="Placement.End"/>
+                        </MudItem>
+                    </MudGrid>
+                }
+            </MudCardContent>
+        </MudCard>
+
+        <MudContainer Class="d-flex justify-between pa-4">
+            <MudButton OnClick="@Close" Variant="Variant.Text" Color="Color.Default" Disabled="@_isSaving">Close
+            </MudButton>
+            <MudButton OnClick="@Save" Variant="Variant.Filled" Color="Color.Success" Disabled="@_isSaving">
+                @if (_isSaving)
+                {
+                    <MudProgressCircular Indeterminate="true" Color="Color.Primary"/>
+                }
+                else
+                {
+                    <span>Save Config</span>
+                }
+            </MudButton>
+        </MudContainer>
+    </DialogContent>
+</MudDialog>
+
+@code {
+    [CascadingParameter] private IMudDialogInstance MudDialog { get; set; } = null!;
+    [Parameter] public Guid ConfigurationId { get; set; }
+
+    private AutoTestBackupConfigDto? _config;
+    
+    private bool _isSaving;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _isSaving = true;
+
+        var result = await Service.FetchAutoTestBackupConfig(ConfigurationId);
+
+        result.Switch(
+            config => _config = config,
+            error => Snackbar.Add(error, Severity.Error)
+        );
+
+        _isSaving = false;
+    }
+
+    private void Close() 
+        => MudDialog.Cancel();
+
+    private async Task Save()
+    {
+        _isSaving = true;
+
+        if (_config is null)
+        {
+            Snackbar.Add("Config can't be null", Severity.Error);
+            
+            _isSaving = false;
+            return;
+        }
+        
+        var result = await Service.EditAutoTestBackupConfig(_config);
+
+        result.Switch(
+            _ => Snackbar.Add("Successfully saved configuration", Severity.Success),
+            error => Snackbar.Add(error, Severity.Error)
+        );
+
+        _isSaving = false;
+    }
+}
