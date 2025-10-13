@@ -211,7 +211,11 @@ internal sealed class DbBackupService(
         var fileName = server is not null
             ? $"{server.DbName}_{backup.CreatedOn:yyyy-MM-dd_hh-mm}.zip"
             : $"DbBackup_{backup.CreatedOn:yyyy-MM-dd_hh-mm}.zip";
-        return (backup.FilePath, "application/zip", fileName);
+        
+        if (Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT") == "Development")
+            return (backup.FilePath, "application/zip", fileName);
+        
+        return (Path.Combine("app", backup.FilePath), "application/zip", fileName);
     }
 
     private async Task<OneOf<Success, string>> PerformBackup(List<DbServerConnection> serversConnections)
