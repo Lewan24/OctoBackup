@@ -16,7 +16,8 @@ public record ServerTunnelDto
     ///     Port serwera SSH (domyślnie 22, w twoim przykładzie 80)
     /// </summary>
     [Required]
-    public int SshPort { get; set; } = 22;
+    [Range(0, ushort.MaxValue)]
+    public ushort SshPort { get; set; } = 22;
 
     /// <summary>
     ///     Użytkownik SSH (np. user)
@@ -48,7 +49,8 @@ public record ServerTunnelDto
     ///     Lokalny port, na którym wystawiony będzie tunel (np. 8543)
     /// </summary>
     [Required]
-    public int LocalPort { get; set; }
+    [Range(0, ushort.MaxValue)]
+    public ushort LocalPort { get; set; }
 
     /// <summary>
     ///     Zdalny host, do którego tunel ma przekierowywać (np. pgsqldomain.com)
@@ -60,7 +62,8 @@ public record ServerTunnelDto
     ///     Zdalny port usługi (np. 5432 dla PostgreSQL, 3306 dla MySQL)
     /// </summary>
     [Required]
-    public int RemotePort { get; set; }
+    [Range(0, ushort.MaxValue)]
+    public ushort RemotePort { get; set; }
 
     /// <summary>
     ///     Opis tunelu (opcjonalny, do UI)

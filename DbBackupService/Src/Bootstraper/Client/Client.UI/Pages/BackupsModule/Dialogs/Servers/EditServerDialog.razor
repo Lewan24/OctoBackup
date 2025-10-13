@@ -29,7 +29,7 @@
                                           For="@(() => Server.ServerHost)"/>
                         </MudItem>
                         <MudItem xs="12" sm="4">
-                            <MudNumericField T="short" Disabled="@_isSaving"
+                            <MudNumericField T="ushort" Disabled="@_isSaving"
                                              Label="Port"
                                              Adornment="Adornment.Start"
                                              AdornmentIcon="@Icons.Material.Filled.Router"
@@ -148,7 +148,7 @@
 
                                         <MudItem xs="12" sm="6">
                                             <MudTooltip Text="SSH port number (default: 22)">
-                                                <MudNumericField T="int" Disabled="@_isSaving"
+                                                <MudNumericField T="ushort" Disabled="@_isSaving"
                                                                  Label="SSH Port"
                                                                  HelperText="Default: 22"
                                                                  @bind-Value="Server.Tunnel!.SshPort"
@@ -158,7 +158,7 @@
 
                                         <MudItem xs="12" sm="6">
                                             <MudTooltip Text="Local port used to forward traffic (e.g. 5433)">
-                                                <MudNumericField T="int" Disabled="@_isSaving"
+                                                <MudNumericField T="ushort" Disabled="@_isSaving"
                                                                  Label="Local Forward Port"
                                                                  HelperText="Local port for DB access"
                                                                  @bind-Value="Server.Tunnel!.LocalPort"
@@ -180,7 +180,7 @@
                                         <MudItem xs="12" sm="6">
                                             <MudTooltip
                                                 Text="Database port (5432 for PostgreSQL, 3306 for MySQL, etc.)">
-                                                <MudNumericField T="int" Disabled="@_isSaving"
+                                                <MudNumericField T="ushort" Disabled="@_isSaving"
                                                                  Label="Remote Port"
                                                                  HelperText="Port of the database server"
                                                                  @bind-Value="Server.Tunnel!.RemotePort"

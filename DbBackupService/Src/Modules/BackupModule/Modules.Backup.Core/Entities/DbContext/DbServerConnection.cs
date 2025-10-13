@@ -8,7 +8,7 @@ public sealed record DbServerConnection
     public bool IsDisabled { get; set; }
     public string ConnectionName { get; set; } = "Example";
     public required string ServerHost { get; set; }
-    public required short ServerPort { get; set; }
+    public required ushort ServerPort { get; set; }
     public required string DbName { get; set; }
     public DatabaseType DbType { get; set; } = DatabaseType.MySql;
     public required string DbUser { get; set; }

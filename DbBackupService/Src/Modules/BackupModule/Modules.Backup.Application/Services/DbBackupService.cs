@@ -288,13 +288,9 @@ internal sealed class DbBackupService(
 
                     var createdFileName = await db.PerformBackup(serverConfig);
 
-                    var compressedFilename = "";
-
                     if (serverConn.DbType is not DatabaseType.SqlServer)
-                        compressedFilename = CompressBackupFile.Perform(backupPath.DirectoryPath, createdFileName,
+                        newDbBackup.FilePath = CompressBackupFile.Perform(backupPath.DirectoryPath, createdFileName,
                             db.GetBackupExtension());
-
-                    newDbBackup.FilePath = Path.Combine(backupPath.DirectoryPath, compressedFilename);
 
                     dbContext.Backups.Add(newDbBackup);
                     await dbContext.SaveChangesAsync();
@@ -310,9 +306,9 @@ internal sealed class DbBackupService(
                         error => logger.LogWarning(error)
                     );
 
-                    if (!string.IsNullOrWhiteSpace(compressedFilename))
+                    if (!string.IsNullOrWhiteSpace(newDbBackup.FilePath))
                         logger.LogInformation("Successfully created and compressed backup: [{Database}], [{ZipFile}]",
-                            db.GetDatabaseName(), compressedFilename);
+                            db.GetDatabaseName(), newDbBackup.FilePath);
 
                     return new Success();
                 }
