@@ -212,7 +212,7 @@ internal sealed class DbBackupService(
             ? $"{server.DbName}_{backup.CreatedOn:yyyy-MM-dd_hh-mm}.zip"
             : $"DbBackup_{backup.CreatedOn:yyyy-MM-dd_hh-mm}.zip";
         
-        return (backup.FilePath, "application/zip", fileName);
+        return (Path.Combine(backup.FilePath), "application/zip", fileName);
     }
 
     private async Task<OneOf<Success, string>> PerformBackup(List<DbServerConnection> serversConnections)
