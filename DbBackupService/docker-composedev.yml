@@ -28,7 +28,7 @@
       # local database with users, app data, settings etc.
       - serviceDb:/app/OctoBackup/Config
       # directory where all backups made are stored. You can bind it to external server
-      #- backups:/app/OctoBackup/backups
+      #- backups:/app/OctoBackup/Backups
         
 # uncomment to bind local db and backups directories
 volumes:

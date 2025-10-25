@@ -26,10 +26,10 @@
       # certificate location
       - ./certs/:/app/Certificate/:ro
       # local database with users, app data, settings etc.
-      #- serviceDb:/db
-      # directory where all backups made are stored. You can bind it to external server
-      #- backups:/backups
-        
+      #- serviceDb:/app/OctoBackup/Config
+        # directory where all backups made are stored. You can bind it to external server
+        #- backups:/app/OctoBackup/Backups
+
 # uncomment to bind local db and backups directories
 #volumes:
   #serviceDb:
