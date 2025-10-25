@@ -13,6 +13,7 @@ public sealed record DbServerConnection
     public DatabaseType DbType { get; set; } = DatabaseType.MySql;
     public required string DbUser { get; set; }
     public required string DbPasswd { get; set; }
+    public bool SsL { get; set; }  = true;
     public bool IsTunnelRequired { get; set; }
     public Guid TunnelId { get; set; }
     public string? BackupEncryptionKeyHas { get; set; }

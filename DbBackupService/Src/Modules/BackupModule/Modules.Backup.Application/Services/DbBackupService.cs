@@ -211,8 +211,13 @@ internal sealed class DbBackupService(
         var fileName = server is not null
             ? $"{server.DbName}_{backup.CreatedOn:yyyy-MM-dd_hh-mm}.zip"
             : $"DbBackup_{backup.CreatedOn:yyyy-MM-dd_hh-mm}.zip";
-        
-        return (Path.Combine(backup.FilePath), "application/zip", fileName);
+
+        var filePath = backup.FilePath;
+        if (!Path.IsPathRooted(filePath))
+            filePath = Path.Combine(AppContext.BaseDirectory, filePath);
+
+        logger.LogInformation("Downloading {BackupPath}...", filePath);
+        return (filePath, "application/zip", fileName);
     }
 
     private async Task<OneOf<Success, string>> PerformBackup(List<DbServerConnection> serversConnections)

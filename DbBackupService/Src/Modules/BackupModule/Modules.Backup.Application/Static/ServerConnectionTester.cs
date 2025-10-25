@@ -80,7 +80,8 @@ internal static class ServerConnectionTester
                         Database = conn.DbName,
                         UserID = conn.DbUser,
                         Password = decryptedDbPasswd,
-                        ConnectionTimeout = 5
+                        ConnectionTimeout = 5, 
+                        SslMode = conn.SsL ? MySqlSslMode.Required : MySqlSslMode.None,
                     }.ToString()),
 
                 DatabaseType.PostgreSql => new NpgsqlConnection(
@@ -92,7 +93,8 @@ internal static class ServerConnectionTester
                         Username = conn.DbUser,
                         Password = decryptedDbPasswd,
                         Timeout = 5,
-                        CommandTimeout = 5
+                        CommandTimeout = 5, 
+                        SslMode = conn.SsL ? SslMode.Require : SslMode.Disable,
                     }.ToString()),
 
                 DatabaseType.SqlServer => new SqlConnection(
@@ -103,7 +105,7 @@ internal static class ServerConnectionTester
                         UserID = conn.DbUser,
                         Password = decryptedDbPasswd,
                         ConnectTimeout = 5,
-                        TrustServerCertificate = true
+                        TrustServerCertificate = conn.SsL
                     }.ToString()),
 
                 _ => throw new NotSupportedException($"Unsupported DB type: {conn.DbType}")

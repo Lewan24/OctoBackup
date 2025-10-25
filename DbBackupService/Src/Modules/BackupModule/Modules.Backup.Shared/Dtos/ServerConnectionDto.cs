@@ -15,6 +15,7 @@ public record ServerConnectionDto
     [Required] public DatabaseType DbType { get; set; } = DatabaseType.MySql;
     [Required] public required string DbUser { get; set; }
     public string? DbPasswd { get; set; }
+    public bool SsL { get; set; }  = true;
     public bool IsTunnelRequired { get; set; }
 
     public ServerTunnelDto? Tunnel { get; set; }

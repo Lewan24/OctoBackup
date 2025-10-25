@@ -76,6 +76,7 @@ public class ServersService(
                 DbName = server.DbName,
                 DbType = server.DbType,
                 DbUser = server.DbUser,
+                SsL = server.SsL,
                 IsTunnelRequired = server.IsTunnelRequired,
                 AutoTestBackupsConfigId = server.AutoTestBackupsConfigId
             };
@@ -209,6 +210,7 @@ public class ServersService(
             DbType = newServer.DbType,
             DbUser = newServer.DbUser,
             DbPasswd = encryptedDbPasswd ?? throw new ArgumentException("Db password can't be null"),
+            SsL = newServer.SsL,
             IsTunnelRequired = newServer.IsTunnelRequired,
             IsDisabled = false
         };
@@ -345,6 +347,7 @@ public class ServersService(
         dbServer.DbName = server.DbName;
         dbServer.DbType = server.DbType;
         dbServer.DbUser = server.DbUser;
+        dbServer.SsL = server.SsL;
 
         if (!string.IsNullOrWhiteSpace(server.DbPasswd))
         {

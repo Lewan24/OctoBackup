@@ -70,9 +70,14 @@
                                           For="@(() => Server.DbPasswd)"/>
                         </MudItem>
 
-                        <MudItem xs="12">
-                            <MudSwitch T="bool" @bind-Value="Server.IsTunnelRequired" Disabled="@_isSaving"
+                        <MudItem xs="12" sm="6">
+                            <MudCheckBox T="bool" @bind-Value="Server.IsTunnelRequired" Disabled="@_isSaving"
                                        Label="Use SSH Tunnel?" Color="Color.Primary"/>
+                        </MudItem>
+
+                        <MudItem xs="12" sm="6">
+                            <MudCheckBox T="bool" @bind-Value="Server.SsL" Disabled="@_isSaving"
+                                         Label="Use SSL?" Color="Color.Primary"/>
                         </MudItem>
 
                         @if (Server.IsTunnelRequired)
