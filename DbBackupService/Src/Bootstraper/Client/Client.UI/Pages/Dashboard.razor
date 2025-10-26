@@ -1,7 +1,11 @@
 ﻿@page "/dashboard"
+
 @using Client.UI.Data.Services
+@using Modules.Backup.Shared.Dtos
 
 @inject AuthStateProvider Auth
+@inject BackupsHttpClientService BackupService
+@inject ISnackbar Snackbar
 
 <PageTitle>Dashboard</PageTitle>
 
@@ -12,47 +16,54 @@
         <MudItem xs="12" sm="6">
             <MudPaper Class="pa-4 mud-elevation-2 rounded-2xl d-flex flex-column align-center">
                 <MudText Typo="Typo.h6">Obsługiwane Serwery</MudText>
-                <MudText Typo="Typo.h4" Color="Color.Primary">4</MudText>
+                <MudText Typo="Typo.h4" Color="Color.Primary">@_dashboard.ServersCount</MudText>
             </MudPaper>
         </MudItem>
         <MudItem xs="12" sm="6">
             <MudPaper Class="pa-4 mud-elevation-2 rounded-2xl d-flex flex-column align-center">
                 <MudText Typo="Typo.h6">Moje Tunele</MudText>
-                <MudText Typo="Typo.h4" Color="Color.Primary">2</MudText>
+                <MudText Typo="Typo.h4" Color="Color.Primary">@_dashboard.TunnelsCount</MudText>
             </MudPaper>
         </MudItem>
         <MudItem xs="12" sm="6">
             <MudPaper Class="pa-4 mud-elevation-2 rounded-2xl d-flex flex-column align-center">
                 <MudText Typo="Typo.h6">Wykonane Backupy</MudText>
-                <MudText Typo="Typo.h4" Color="Color.Primary">245</MudText>
+                <MudText Typo="Typo.h4" Color="Color.Primary">@_dashboard.PerformedBackups</MudText>
             </MudPaper>
         </MudItem>
         <MudItem xs="12" sm="6">
             <MudPaper Class="pa-4 mud-elevation-2 rounded-2xl d-flex flex-column align-center">
                 <MudText Typo="Typo.h6">Średnio backupów w miesiącu</MudText>
-                <MudText Typo="Typo.h4" Color="Color.Primary">20</MudText>
+                <MudText Typo="Typo.h4" Color="Color.Primary">@_dashboard.AvgBackupsPerMonth</MudText>
             </MudPaper>
         </MudItem>
         <MudItem xs="12" sm="6">
             <MudPaper Class="pa-4 mud-elevation-2 rounded-2xl d-flex flex-column align-center">
                 <MudText Typo="Typo.h6">Ilość zrobionych testów</MudText>
-                <MudText Typo="Typo.h4" Color="Color.Primary">180</MudText>
+                <MudText Typo="Typo.h4" Color="Color.Primary">@_dashboard.PerformedTests</MudText>
             </MudPaper>
         </MudItem>
         <MudItem xs="12" sm="6">
             <MudPaper Class="pa-4 mud-elevation-2 rounded-2xl d-flex flex-column align-center">
                 <MudText Typo="Typo.h6">Testy udane</MudText>
-                <MudText Typo="Typo.h4" Color="Color.Primary">94%</MudText>
+                <MudText Typo="Typo.h4" Color="Color.Primary">@_dashboard.TestsSuccessRate%</MudText>
             </MudPaper>
         </MudItem>
     </MudGrid>
 </MudContainer>
 
 @code{
-
+    private UserDashboardDto _dashboard = new(); 
+    
     protected override async Task OnInitializedAsync()
     {
         await Auth.AuthorizeUser(returnPageAfterValidPasswordAuthorization: "dashboard");
+
+        var result = await BackupService.GetMyDashboardAsync();
+        result.Switch(
+            dashboard => _dashboard = dashboard,
+            error => Snackbar.Add(error, Severity.Error)
+        );
     }
 
 }

@@ -10,9 +10,9 @@ public static class Extensions
     {
         services.AddScoped<ServersService>();
         services.AddScoped<SchedulesService>();
-
         services.AddScoped<IDbBackupService, DbBackupService>();
-
+        services.AddScoped<StatisticsService>();
+        
         services.AddTransient<NotifyService>();
 
         return services;

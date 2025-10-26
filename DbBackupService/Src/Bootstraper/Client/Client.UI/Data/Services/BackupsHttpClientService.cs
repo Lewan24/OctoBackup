@@ -80,4 +80,13 @@ public class BackupsHttpClientService(TokenHttpClientService api)
     {
         return await api.PostAsync("/api/servers/EditAutoTestConfig", config);
     }
+    
+    public async Task<OneOf<UserDashboardDto, string>> GetMyDashboardAsync()
+    {
+        return await api.GetAsync<UserDashboardDto>("/api/statistics/MyDashboard");
+    }
+    public async Task<OneOf<AdminDashboardDto, string>> GetAdminDashboardAsync()
+    {
+        return await api.GetAsync<AdminDashboardDto>("/api/statistics/AdminDashboard");
+    }
 }
