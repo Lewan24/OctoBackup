@@ -18,10 +18,6 @@
     </ItemGroup>
 
     <ItemGroup>
-        <Folder Include="Pages\Authorization\"/>
-    </ItemGroup>
-
-    <ItemGroup>
         <ProjectReference Include="..\..\..\Modules\AuthModule\Modules.Auth.Shared\Modules.Auth.Shared.csproj"/>
         <ProjectReference Include="..\..\..\Modules\BackupModule\Modules.Backup.Core\Modules.Backup.Core.csproj"/>
         <ProjectReference Include="..\..\..\Modules\BackupModule\Modules.Backup.Shared\Modules.Backup.Shared.csproj"/>

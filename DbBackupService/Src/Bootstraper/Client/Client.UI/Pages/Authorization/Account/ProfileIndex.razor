@@ -1,0 +1,113 @@
+﻿@page "/account/profile"
+
+@using Client.UI.Data.Services
+@using Modules.Auth.Shared.ActionsRequests
+
+@inject AuthStateProvider Auth
+@inject ISnackbar SnackBar
+@inject ProfileService Profile
+@inject NavigationManager NavigationManager
+
+<MudContainer MaxWidth="MaxWidth.Medium" Class="pa-6">
+    <MudPaper Class="pa-6 rounded-2xl mud-elevation-2">
+        <MudText Typo="Typo.h4" Color="Color.Primary" Class="mb-2">Your Profile</MudText>
+        <MudText Typo="Typo.subtitle1" Class="mb-6">Welcome back, @_userEmail!</MudText>
+
+        <MudGrid Spacing="3">
+            <!-- Change Email -->
+            <MudItem xs="12" sm="6">
+                <EditForm Model="_changeEmailRequest" OnValidSubmit="ChangeEmail">
+                    <DataAnnotationsValidator />
+                    
+                    <MudCard Class="pa-4 rounded-2xl">
+                        <MudCardHeader>
+                            <MudText Typo="Typo.h6" Color="Color.Primary">Change Email</MudText>
+                        </MudCardHeader>
+                        <MudCardContent>
+                            <MudTextField Label="New Email" @bind-Value="_changeEmailRequest.NewEmail" FullWidth="true"
+                                          For="@(() => _changeEmailRequest.NewEmail)" Disabled="_isChanging"/>
+                            <MudTextField Label="Confirm Email" @bind-Value="_changeEmailRequest.ConfirmNewEmail" FullWidth="true" Class="mt-3"
+                                          For="@(() => _changeEmailRequest.ConfirmNewEmail)" Disabled="_isChanging"/>
+                        </MudCardContent>
+                        <MudCardActions>
+                            <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="ChangeEmail" Disabled="_isChanging">Update</MudButton>
+                        </MudCardActions>
+                    </MudCard>
+                </EditForm>
+            </MudItem>
+
+            <!-- Change Password -->
+            <MudItem xs="12" sm="6">
+                <EditForm Model="_changePasswordRequest" OnValidSubmit="ChangePassword">
+                    <DataAnnotationsValidator/>
+                    
+                    <MudCard Class="pa-4 rounded-2xl">
+                        <MudCardHeader>
+                            <MudText Typo="Typo.h6" Color="Color.Primary">Change Password</MudText>
+                        </MudCardHeader>
+                        <MudCardContent>
+                            <MudTextField Label="Current Password" @bind-Value="_changePasswordRequest.CurrentPassword" InputType="InputType.Password" FullWidth="true"
+                                          For="@(() => _changePasswordRequest.CurrentPassword)" Disabled="_isChanging"/>
+                            <MudTextField Label="New Password" @bind-Value="_changePasswordRequest.NewPassword" InputType="InputType.Password" FullWidth="true" Class="mt-3"
+                                          For="@(() => _changePasswordRequest.NewPassword)" Disabled="_isChanging"/>
+                            <MudTextField Label="Confirm Password" @bind-Value="_changePasswordRequest.ConfirmNewPassword" InputType="InputType.Password" FullWidth="true" Class="mt-3"
+                                          For="@(() => _changePasswordRequest.ConfirmNewPassword)" Disabled="_isChanging"/>
+                        </MudCardContent>
+                        <MudCardActions>
+                            <MudButton Variant="Variant.Filled" Color="Color.Success" Disabled="_isChanging" OnClick="ChangePassword">Update</MudButton>
+                        </MudCardActions>
+                    </MudCard>
+                </EditForm>
+            </MudItem>
+        </MudGrid>
+    </MudPaper>
+</MudContainer>
+
+@code {
+    private string _userEmail = "Loading...";
+    
+    private ChangeEmailRequest _changeEmailRequest = new();
+    private ChangePasswordRequest _changePasswordRequest = new();
+
+    private bool _isChanging;
+    
+    protected override async Task OnInitializedAsync()
+    {
+        await Auth.AuthorizeUser(returnPageAfterValidPasswordAuthorization: "account-profile");
+        
+        var authState = await Auth.GetAuthenticationStateAsync();
+        _userEmail = authState.User.Identity?.Name ?? "Unknown user";
+    }
+
+    private async Task ChangeEmail()
+    {
+        _isChanging = true;
+        
+        var result = await Profile.ChangeEmail(_changeEmailRequest);
+        
+        result.Switch(
+            _ =>
+            {
+                SnackBar.Add("Email updated successfully. Login again to confirm new email changes.", Severity.Success);
+                NavigationManager.NavigateTo("/", true);
+            },
+            error => SnackBar.Add(error, Severity.Error)
+        );
+        
+        _isChanging = false;
+    }
+
+    private async Task ChangePassword()
+    {
+        _isChanging = true;
+        
+        var result = await Profile.ChangePassword(_changePasswordRequest)!;
+        
+        result.Switch(
+            _ => SnackBar.Add("Password updated successfully.", Severity.Success),
+            error => SnackBar.Add(error, Severity.Error)
+        );
+        
+        _isChanging = false;
+    }
+}

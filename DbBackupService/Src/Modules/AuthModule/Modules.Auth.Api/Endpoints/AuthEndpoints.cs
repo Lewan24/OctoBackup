@@ -41,6 +41,10 @@ internal static class AuthEndpoints
         api.MapPost("ChangePassword", AuthOperations.ChangePassword)
             .WithSummary("Change user's password")
             .AddEndpointFilter<BasicTokenAuthorizationFilter>();
+        
+        api.MapPost("ChangeEmail", AuthOperations.ChangeEmail)
+            .WithSummary("Change user's email address")
+            .AddEndpointFilter<BasicTokenAuthorizationFilter>();
 
         api.MapPost("CanLogIn", AuthOperations.CanLogIn)
             .WithSummary("Check if user can be logged in");

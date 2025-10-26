@@ -30,6 +30,14 @@ internal abstract record AuthOperations
     {
         return authService.ChangePassword(context, request);
     }
+    
+    public static Task<IResult> ChangeEmail(
+        HttpContext context,
+        [FromBody] ChangeEmailRequest request,
+        [FromServices] IAuthService authService)
+    {
+        return authService.ChangeEmail(context, request);
+    }
 
     public static Task<bool> CanLogIn(
         HttpContext context,

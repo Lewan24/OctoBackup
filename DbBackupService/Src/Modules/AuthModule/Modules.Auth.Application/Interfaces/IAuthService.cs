@@ -8,6 +8,7 @@ public interface IAuthService
 {
     Task<IResult> Login(HttpContext context, LoginRequest? request);
     Task<IResult> ChangePassword(HttpContext context, ChangePasswordRequest request);
+    Task<IResult> ChangeEmail(HttpContext context, ChangeEmailRequest request);
     Task<bool> CanLogIn(HttpContext context, LoginRequest? request);
     Task<IResult> Register(HttpContext context, RegisterRequest request);
     Task<IResult> Logout(HttpContext context);

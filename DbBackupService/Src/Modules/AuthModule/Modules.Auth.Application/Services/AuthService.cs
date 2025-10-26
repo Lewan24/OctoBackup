@@ -35,7 +35,7 @@ internal sealed class AuthService(
 
         var user = await userManager.FindByEmailAsync(request!.Email);
         if (user is null)
-            return Results.NotFound("Taki użytkownik nie istnieje.");
+            return Results.NotFound("This user does not exist.");
 
         await signInManager.SignInAsync(user, request.RememberMe);
 
@@ -54,14 +54,42 @@ internal sealed class AuthService(
         if (!IsValidChangePasswordRequest(request, out var error))
             return Results.BadRequest(error);
 
-        var user = await userManager.FindByEmailAsync(context.User.Identity?.Name!);
+        var user = await userManager.FindByNameAsync(context.User.Identity?.Name!);
         if (user is null)
-            return Results.BadRequest("Nie można znaleźć użytkownika");
+            return Results.BadRequest("Can't find user.");
 
         var result = await userManager.ChangePasswordAsync(user, request.CurrentPassword, request.NewPassword);
         return result.Succeeded
             ? Results.Ok()
-            : Results.BadRequest("Błąd przy zmianie hasła, sprawdź dane i wymagania.");
+            : Results.BadRequest("Error while changing password. Check your password and try again.");
+    }
+    
+    public async Task<IResult> ChangeEmail(HttpContext context, ChangeEmailRequest request)
+    {
+        logger.LogInformation("Changing email address for {UserName} to new one: [{NewEmail}]...", context.User.Identity?.Name, request.NewEmail);
+
+        if (string.IsNullOrWhiteSpace(request.NewEmail) || string.IsNullOrWhiteSpace(request.ConfirmNewEmail))
+            return Results.BadRequest("Cant process empty email address.");
+        
+        if (request.NewEmail != request.ConfirmNewEmail)
+            return Results.BadRequest("Emails do not match.");
+
+        var user = await userManager.FindByNameAsync(context.User.Identity?.Name!);
+        if (user is null)
+            return Results.BadRequest("Can't find user.");
+
+        var changeEmailToken = await userManager.GenerateChangeEmailTokenAsync(user, request.NewEmail);
+        var result = await userManager.ChangeEmailAsync(user,  request.NewEmail, changeEmailToken);
+        
+        if (result.Succeeded)
+        {
+            await userManager.SetUserNameAsync(user, request.NewEmail);
+            await Logout(context);
+        }
+        
+        return result.Succeeded
+            ? Results.Ok()
+            : Results.BadRequest("Error while changing email address. Try again later.");
     }
 
     public async Task<bool> CanLogIn(HttpContext context, LoginRequest? request)
