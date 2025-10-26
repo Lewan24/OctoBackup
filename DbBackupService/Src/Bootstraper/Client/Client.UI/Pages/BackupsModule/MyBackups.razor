@@ -81,9 +81,18 @@
                     </MudTd>
 
                     <MudTd>
-                        <MudMenu>
+                        <MudMenu Disabled="@context.IsDisabled">
                             <ActivatorContent>
-                                <MudIconButton Icon="@Icons.Material.Filled.Menu"/>
+                                @if (context.IsDisabled)
+                                {
+                                    <MudTooltip Delay="100" Text="This backup is too old to perform any operations">
+                                        <MudIconButton Icon="@Icons.Material.Filled.Menu"/>
+                                    </MudTooltip>
+                                }
+                                else
+                                {
+                                    <MudIconButton Icon="@Icons.Material.Filled.Menu"/>
+                                }
                             </ActivatorContent>
 
                             <ChildContent>

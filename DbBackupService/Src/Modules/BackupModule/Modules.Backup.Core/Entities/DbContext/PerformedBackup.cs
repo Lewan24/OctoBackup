@@ -8,4 +8,5 @@ public sealed record PerformedBackup
     public Guid? TestId { get; set; }
     public Guid? ServerConnectionId { get; set; }
     public required string FilePath { get; set; }
+    public bool IsSoftDeleted { get; set; } = false;
 }

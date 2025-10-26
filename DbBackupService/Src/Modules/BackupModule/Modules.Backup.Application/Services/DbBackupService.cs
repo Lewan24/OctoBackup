@@ -146,6 +146,7 @@ internal sealed class DbBackupService(
                     FilePath = x.FilePath,
                     Name = x.Name,
                     ServerConnectionId = x.ServerConnectionId,
+                    IsDisabled = x.IsSoftDeleted,
                     Test = dbContext.BackupsTests.AsNoTracking().Where(y => y.BackupId == x.Id).Select(y =>
                         new BackupTestDto
                         {
@@ -159,7 +160,7 @@ internal sealed class DbBackupService(
         foreach (var server in dbServers)
             backups.AddRange(dbContext.Backups
                 .AsNoTracking()
-                .Where(x => x.ServerConnectionId == server.Id)
+                .Where(x => x.ServerConnectionId == server.Id && !x.IsSoftDeleted)
                 .Select(x => new PerformedBackupDto
                 {
                     Id = x.Id,
@@ -275,11 +276,10 @@ internal sealed class DbBackupService(
                                     x.CreatedOn < cutoffDate);
                     if (serverActualBackups.Any())
                     {
-                        dbContext.Backups.RemoveRange(serverActualBackups);
+                        foreach (var backup in serverActualBackups)
+                            backup.IsSoftDeleted = true;
+                        
                         await dbContext.SaveChangesAsync();
-
-                        logger.LogInformation("Successfully cleaned [{DeletedCount}] old backups entries",
-                            serverActualBackups.Count());
                     }
 
                     var serverConn = db.GetServerConnection();

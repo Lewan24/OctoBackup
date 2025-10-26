@@ -8,4 +8,5 @@ public class PerformedBackupDto
     public BackupTestDto? Test { get; set; }
     public Guid? ServerConnectionId { get; set; }
     public string? FilePath { get; set; }
+    public bool IsDisabled { get; set; } = false;
 }

@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Modules.Backup.Infrastructure.DbContexts;
 
@@ -10,9 +11,11 @@ using Modules.Backup.Infrastructure.DbContexts;
 namespace Modules.Backup.Infrastructure.DbContexts.Migrations
 {
     [DbContext(typeof(BackupsDbContext))]
-    partial class BackupsDbContextModelSnapshot : ModelSnapshot
+    [Migration("20251026120032_AddSoftDeleteToBackups")]
+    partial class AddSoftDeleteToBackups
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder.HasAnnotation("ProductVersion", "9.0.9");
