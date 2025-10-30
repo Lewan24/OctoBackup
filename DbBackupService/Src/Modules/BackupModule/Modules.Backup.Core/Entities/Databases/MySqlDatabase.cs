@@ -30,22 +30,23 @@ public sealed class MySqlDatabase(
         var hostPort = GetHostAndPort();
 
         var decryptedDbPassword = _cryptoService.Decrypt(_serverConnection.DbPasswd);
-        var args =
+        var baseArgs =
             $"-h {hostPort.Host} -P {hostPort.Port} -u {_serverConnection.DbUser} -p{decryptedDbPassword} {_serverConnection.DbName}";
 
+        var mySqlSsl = GetServerConnection().SsL ? "--ssl-mode=PREFERRED" : "--ssl-mode=DISABLED";
         var process = new Process
         {
             StartInfo = new ProcessStartInfo
             {
                 FileName = "mysqldump",
-                Arguments = args,
+                Arguments = $"{mySqlSsl} {baseArgs}",
                 RedirectStandardOutput = true,
                 RedirectStandardError = true,
                 UseShellExecute = false,
                 CreateNoWindow = true
             }
         };
-
+        
         await using var fs = new FileStream(fullFilePath, FileMode.Create, FileAccess.Write);
         process.Start();
         await process.StandardOutput.BaseStream.CopyToAsync(fs);
@@ -53,7 +54,25 @@ public sealed class MySqlDatabase(
         await process.WaitForExitAsync();
 
         if (process.ExitCode != 0)
-            throw new Exception($"mysqldump failed: {error}");
+        {
+            if (error.Contains("mariadb-dump", StringComparison.OrdinalIgnoreCase))
+            {
+                process.Kill();
+                var mariaSqlSsl = GetServerConnection().SsL ? "--ssl-verify-server-cert" : "--ssl=0";
+                process.StartInfo.FileName = "mariadb-dump";
+                process.StartInfo.Arguments = $"{mariaSqlSsl} {baseArgs}";
+                
+                process.Start();
+                await process.StandardOutput.BaseStream.CopyToAsync(fs);
+                error = await process.StandardError.ReadToEndAsync();
+                await process.WaitForExitAsync();
+                
+                if (process.ExitCode != 0)
+                    throw new Exception($"mariadb-dump failed: {error}");
+            }
+            else
+                throw new Exception($"mysqldump failed: {error}");
+        }
     }
 
     private async Task PerformBackupWithLibrary(string fullFilePath)
