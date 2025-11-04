@@ -6,31 +6,25 @@
 
 <MudContainer MaxWidth="MaxWidth.Large" Class="pa-4 mt-6">
     <!-- Nagłówek -->
-    <MudText Typo="Typo.h4" Color="Color.Primary" Class="mb-4">Witaj w OctoBackup</MudText>
+    <MudText Typo="Typo.h4" Color="Color.Primary" Class="mb-4">Welcome in OctoBackup</MudText>
     <MudText Typo="Typo.body1" Style="@($"color: {DefaultLayout.ThemePalette.TextSecondary}")" Class="mb-6">
-        Tutaj znajdziesz najnowsze informacje, aktualizacje i linki do dokumentacji systemu.
+        Here you will find the latest information, updates, and links to system documentation.
     </MudText>
 
     <AuthorizeView>
         <NotAuthorized>
             <!-- Sekcja Login/Signup -->
-            <MudText Typo="Typo.h5" Color="Color.Primary" Class="mb-2 mt-16">Dołącz do nas i korzystaj z możliwości
-                systemu!
-            </MudText>
+            <MudText Typo="Typo.h5" Color="Color.Primary" Class="mb-2 mt-16">Join us and enjoy the benefits of the system!</MudText>
             <MudGrid Class="mb-16">
                 <MudItem xs="12" sm="6">
                     <MudCard Class="pa-4 mud-elevation-2 rounded-2xl hover-elevation-6">
                         <MudCardContent>
-                            <MudText Typo="Typo.subtitle1" Color="Color.Primary">Nie masz jeszcze konta? Dołącz do
-                                nas!
-                            </MudText>
-                            <MudText Typo="Typo.body2" Style="@($"color: {DefaultLayout.ThemePalette.TextSecondary}")">
-                                Stwórz nowe konto i ciesz się możliwościa korzystania z OctoBackup!
-                            </MudText>
+                            <MudText Typo="Typo.subtitle1" Color="Color.Primary">Don't have an account yet? Join us now!</MudText>
+                            <MudText Typo="Typo.body2" Style="@($"color: {DefaultLayout.ThemePalette.TextSecondary}")">Create a new account and enjoy using OctoBackup!</MudText>
                         </MudCardContent>
                         <MudCardActions>
                             <MudButton Href="/account/register" Variant="Variant.Filled" Color="Color.Primary">
-                                Zarejestruj się
+                                Sign up
                             </MudButton>
                         </MudCardActions>
                     </MudCard>
@@ -39,15 +33,12 @@
                 <MudItem xs="12" sm="6">
                     <MudCard Class="pa-4 mud-elevation-2 rounded-2xl hover-elevation-6">
                         <MudCardContent>
-                            <MudText Typo="Typo.subtitle1" Color="Color.Primary">Posiadasz już konto w systemie?
-                            </MudText>
-                            <MudText Typo="Typo.body2" Style="@($"color: {DefaultLayout.ThemePalette.TextSecondary}")">
-                                Zaloguj się do swojego konta w OctoBackup!
-                            </MudText>
+                            <MudText Typo="Typo.subtitle1" Color="Color.Primary">Do you already have an account in the system?</MudText>
+                            <MudText Typo="Typo.body2" Style="@($"color: {DefaultLayout.ThemePalette.TextSecondary}")">Log in to your OctoBackup account!</MudText>
                         </MudCardContent>
                         <MudCardActions>
                             <MudButton Href="/account/login" Variant="Variant.Filled" Color="Color.Primary">
-                                Zaloguj się
+                                Log in
                             </MudButton>
                         </MudCardActions>
                     </MudCard>
@@ -57,17 +48,17 @@
     </AuthorizeView>
 
     <!-- Sekcja Nowości -->
-    <MudText Typo="Typo.h6" Color="Color.Primary" Class="mb-2">Nowości</MudText>
+    <MudText Typo="Typo.h6" Color="Color.Primary" Class="mb-2">What's New</MudText>
     <MudPaper Class="pa-4 mb-6 mud-elevation-2 rounded-2xl">
         <MudList Dense="true" T="string">
             <MudListItem>
-                <MudText>Dodano obsługę wielu baz danych w jednym backupie.</MudText>
+                <MudText>An example of a new feature that improves system usability</MudText>
                 <MudText Typo="Typo.caption" Style="@($"color: {DefaultLayout.ThemePalette.TextSecondary}")">
                     2025-08-25
                 </MudText>
             </MudListItem>
             <MudListItem>
-                <MudText>Usprawniono autoryzację użytkowników i system powiadomień.</MudText>
+                <MudText>Another example of a new feature enabling advanced backup scheduling</MudText>
                 <MudText Typo="Typo.caption" Style="@($"color: {DefaultLayout.ThemePalette.TextSecondary}")">
                     2025-08-20
                 </MudText>
@@ -76,38 +67,60 @@
     </MudPaper>
 
     <!-- Sekcja Dokumentacja -->
-    <MudText Typo="Typo.h6" Color="Color.Primary" Class="mb-2">Dokumentacja i zasoby</MudText>
+    <MudText Typo="Typo.h6" Color="Color.Primary" Class="mb-2">Documentation and resources</MudText>
     <MudGrid>
-        <MudItem xs="12" sm="6" md="4">
-            <MudCard Class="pa-4 mud-elevation-2 rounded-2xl hover-elevation-6">
-                <MudCardContent>
-                    <MudText Typo="Typo.subtitle1" Color="Color.Primary">API Documentation</MudText>
-                    <MudText Typo="Typo.body2" Style="@($"color: {DefaultLayout.ThemePalette.TextSecondary}")"
-                             Class="mb-2">
-                        Pełna dokumentacja API do integracji z systemem OctoBackup.
-                    </MudText>
-                </MudCardContent>
-                <MudCardActions>
-                    <MudButton Href="@_apiUrl" Target="_blank" Variant="Variant.Filled" Color="Color.Primary">
-                        Otwórz dokumentację
-                    </MudButton>
-                </MudCardActions>
-            </MudCard>
-        </MudItem>
+        @if (Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT") == "Production")
+        {
+            <MudItem xs="12" sm="6" md="4">
+                <MudCard Class="pa-4 mud-elevation-2 rounded-2xl hover-elevation-6">
+                    <MudCardContent>
+                        <MudText Typo="Typo.subtitle1" Color="Color.Primary">Documentation</MudText>
+                        <MudText Typo="Typo.body2" Style="@($"color: {DefaultLayout.ThemePalette.TextSecondary}")"
+                                 Class="mb-2">
+                            Complete documentation for the OctoBackup system.
+                        </MudText>
+                    </MudCardContent>
+                    <MudCardActions>
+                        <MudButton Href="https://github.com/Lewan24/OctoBackup" Target="_blank" Variant="Variant.Filled" Color="Color.Primary">
+                            Open documentation
+                        </MudButton>
+                    </MudCardActions>
+                </MudCard>
+            </MudItem>
+        }
+        else
+        {
+            <MudItem xs="12" sm="6" md="4">
+                <MudCard Class="pa-4 mud-elevation-2 rounded-2xl hover-elevation-6">
+                    <MudCardContent>
+                        <MudText Typo="Typo.subtitle1" Color="Color.Primary">Documentation</MudText>
+                        <MudText Typo="Typo.body2" Style="@($"color: {DefaultLayout.ThemePalette.TextSecondary}")"
+                                 Class="mb-2">
+                            API documentation for the OctoBackup system.
+                        </MudText>
+                    </MudCardContent>
+                    <MudCardActions>
+                        <MudButton Href="@_apiUrl" Target="_blank" Variant="Variant.Filled" Color="Color.Primary">
+                            Open API documentation
+                        </MudButton>
+                    </MudCardActions>
+                </MudCard>
+            </MudItem>
+        }
 
         <MudItem xs="12" sm="6" md="4">
             <MudCard Class="pa-4 mud-elevation-2 rounded-2xl hover-elevation-6">
                 <MudCardContent>
-                    <MudText Typo="Typo.subtitle1" Color="Color.Primary">Wiki / Instrukcje</MudText>
+                    <MudText Typo="Typo.subtitle1" Color="Color.Primary">Wiki / Instructions</MudText>
                     <MudText Typo="Typo.body2" Style="@($"color: {DefaultLayout.ThemePalette.TextSecondary}")"
                              Class="mb-2">
-                        Szybki dostęp do poradników i instrukcji użytkowania.
+                        Quick access to guides and user manuals.
                     </MudText>
                 </MudCardContent>
                 <MudCardActions>
-                    <MudButton Href="https://your-wiki-link.com" Target="_blank" Variant="Variant.Filled"
+                    <MudButton Href="https://github.com/Lewan24/OctoBackup/wiki" Target="_blank" Variant="Variant.Filled"
                                Color="Color.Primary">
-                        Otwórz Wiki
+                        Open Wiki
                     </MudButton>
                 </MudCardActions>
             </MudCard>

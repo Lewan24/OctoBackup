@@ -159,16 +159,24 @@
 
     private async Task DisableServer(Guid id)
     {
-        _isProcessing = true;
+        bool? msgBoxResult = await DialogService.ShowMessageBox(
+            "Warning",
+            (MarkupString) "Are you sure that you want to disable this server? <br><br>This can be undone after contacting to Administrator.", 
+            yesText:"Disable", cancelText:"Cancel");
+        
+        if(msgBoxResult is not null)
+        {
+            _isProcessing = true;
+            
+            var result = await Service.ToggleServerDisabledStatus(id);
 
-        var result = await Service.ToggleServerDisabledStatus(id);
-
-        result.Switch(
-            success => _ = FetchServers(),
-            error => Snackbar.Add(error, Severity.Error)
-        );
-
-        _isProcessing = false;
+            result.Switch(
+                success => _ = FetchServers(),
+                error => Snackbar.Add(error, Severity.Error)
+            );
+            
+            _isProcessing = false;
+        }
     }
 
     private async Task OpenEditServerDialog(ServerConnectionDto server)
@@ -213,16 +221,24 @@
 
     private async Task DeleteServer(Guid serverId)
     {
-        _isProcessing = true;
+        bool? msgBoxResult = await DialogService.ShowMessageBox(
+            "Warning",
+            (MarkupString) "Are you sure that you want to delete this server? <br><br>This can not be undone!", 
+            yesText:"Delete Permanently!", cancelText:"Cancel");
+        
+        if (msgBoxResult is not null)
+        {
+            _isProcessing = true;
+            
+            var result = await Service.CascadeDeleteServer(serverId);
 
-        var result = await Service.CascadeDeleteServer(serverId);
+            result.Switch(
+                success => _ = FetchServers(),
+                error => Snackbar.Add(error, Severity.Error)
+            );
 
-        result.Switch(
-            success => _ = FetchServers(),
-            error => Snackbar.Add(error, Severity.Error)
-        );
-
-        _isProcessing = false;
+            _isProcessing = false;
+        }
     }
 
     private async Task PerformServerBackup(Guid serverId)

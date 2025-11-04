@@ -39,7 +39,7 @@
                     {
                         <MudButton Variant="Variant.Filled" Color="Color.Success" Size="Size.Small"
                                    StartIcon="@Icons.Material.Filled.Block"
-                                   OnClick="@(() => ToggleBlock(context.Id.ToString()))" Disabled="@_isProcessing">
+                                   OnClick="@(() => ToggleBlock(context))" Disabled="@_isProcessing">
                             Block
                         </MudButton>
                     }
@@ -47,7 +47,7 @@
                     {
                         <MudButton Variant="Variant.Filled" Color="Color.Error" Size="Size.Small"
                                    StartIcon="@Icons.Material.Filled.LockOpen"
-                                   OnClick="@(() => ToggleBlock(context.Id.ToString()))" Disabled="@_isProcessing">
+                                   OnClick="@(() => ToggleBlock(context))" Disabled="@_isProcessing">
                             Unblock
                         </MudButton>
                     }
@@ -104,18 +104,28 @@
         StateHasChanged();
     }
 
-    private async Task ToggleBlock(string userId)
+    private async Task ToggleBlock(UserDto user)
     {
-        _isProcessing = true;
+        var blockadeString = user.IsBlocked ? "unblock" : "block";
+        bool? msgBoxResult = await DialogService.ShowMessageBox(
+            "Warning",
+            $"Are you sure that you want to {blockadeString} this user?", 
+            yesText:"Yes!", cancelText:"Cancel");
+        
+        if (msgBoxResult is not null)
+        {
+            _isProcessing = true;
 
-        var result = await Service.ToggleUserBlockade(userId);
+            var result = await Service.ToggleUserBlockade(user.Id.ToString());
 
-        result.Switch(
-            async void (_) => await FetchUsers(),
-            error => Snackbar.Add(error, Severity.Error)
-        );
+            result.Switch(
+                async void (_) => await FetchUsers(),
+                error => Snackbar.Add(error, Severity.Error)
+            );
+            
+            _isProcessing = false;
+        }
 
-        _isProcessing = false;
     }
 
     private async Task OpenEditUserDialog(UserDto user)

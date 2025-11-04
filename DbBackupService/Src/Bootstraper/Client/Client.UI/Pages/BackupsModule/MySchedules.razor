@@ -123,20 +123,28 @@
 
     private async Task DeleteSchedule(Guid id)
     {
-        _isProcessing = true;
+        bool? msgBoxResult = await DialogService.ShowMessageBox(
+            "Warning",
+            (MarkupString) "Are you sure that you want to permanently delete this schedule? <br><br>This can not be undone!", 
+            yesText:"Permanently delete", cancelText:"Cancel");
+        
+        if (msgBoxResult is not null)
+        {
+            _isProcessing = true;
+            
+            var result = await Service.DeleteScheduleAsync(id);
 
-        var result = await Service.DeleteScheduleAsync(id);
-
-        result.Switch(
-            async void (_) =>
-            {
-                Snackbar.Add("Successfully removed schedule.", Severity.Success);
-                await FetchSchedules();
-            },
-            error => Snackbar.Add(error, Severity.Error)
-        );
-
-        _isProcessing = false;
+            result.Switch(
+                async void (_) =>
+                {
+                    Snackbar.Add("Successfully removed schedule.", Severity.Success);
+                    await FetchSchedules();
+                },
+                error => Snackbar.Add(error, Severity.Error)
+            );
+            
+            _isProcessing = false;
+        }
     }
 
     private async Task OpenNewScheduleDialog()
