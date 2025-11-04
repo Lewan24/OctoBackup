@@ -64,6 +64,10 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Modules.Crypto.Shared", "Sr
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Modules.Crypto.Api", "Src\Modules\CryptoModule\Modules.Crypto.Api\Modules.Crypto.Api.csproj", "{81471CFC-061C-48E4-ACCA-FBE583DCAC01}"
 EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "BackupsTests", "BackupsTests", "{7141A8CE-79EE-4C76-8AA6-E5D074650290}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Modules.BackupsTests.Api", "Src\Modules\BackupsTests\Modules.BackupsTests.Api\Modules.BackupsTests.Api.csproj", "{1DE044F9-AEBE-4384-8766-7B60BD829C01}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -146,6 +150,10 @@ Global
 		{81471CFC-061C-48E4-ACCA-FBE583DCAC01}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{81471CFC-061C-48E4-ACCA-FBE583DCAC01}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{81471CFC-061C-48E4-ACCA-FBE583DCAC01}.Release|Any CPU.Build.0 = Release|Any CPU
+		{1DE044F9-AEBE-4384-8766-7B60BD829C01}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{1DE044F9-AEBE-4384-8766-7B60BD829C01}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{1DE044F9-AEBE-4384-8766-7B60BD829C01}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{1DE044F9-AEBE-4384-8766-7B60BD829C01}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -178,6 +186,8 @@ Global
 		{32E6D088-AFE2-42A8-BE7F-7FC5348E356D} = {7EFE67DE-F557-4212-BF9E-57F7F1DAECA7}
 		{8F76EA6E-8657-4581-9666-F484BE627D45} = {7EFE67DE-F557-4212-BF9E-57F7F1DAECA7}
 		{81471CFC-061C-48E4-ACCA-FBE583DCAC01} = {7EFE67DE-F557-4212-BF9E-57F7F1DAECA7}
+		{7141A8CE-79EE-4C76-8AA6-E5D074650290} = {00FABD4C-5920-4940-A122-342F45F5B31A}
+		{1DE044F9-AEBE-4384-8766-7B60BD829C01} = {7141A8CE-79EE-4C76-8AA6-E5D074650290}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {05F3A4BF-6277-46FD-9537-F78E8FABE0DA}

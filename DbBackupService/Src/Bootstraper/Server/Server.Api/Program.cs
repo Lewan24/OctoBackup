@@ -12,6 +12,7 @@ using Modules.Backup.Api;
 using Modules.Backup.Application.Workers;
 using Modules.Backup.Infrastructure.DbContexts;
 using Modules.Backup.Shared.Hubs;
+using Modules.BackupsTests.Api;
 using Modules.Crypto.Api;
 using Modules.Shared.Common;
 using OpenTelemetry.Exporter;
@@ -41,6 +42,7 @@ if (builder.Environment.IsDevelopment())
     builder.Services.AddOpenApi();
 
 builder.Services.AddBackupModule();
+builder.Services.AddBackupsTestsModule();
 
 builder.Services.AddLogging(logging =>
 {
@@ -181,6 +183,7 @@ app.MapRazorComponents<App>()
 app.UseRouting();
 
 app.MapBackupModuleEndpoints();
+app.MapBackupsTestsModuleEndpoints();
 app.MapAuthModuleEndpoints();
 app.MapAdministrationModuleEndpoints();
 
