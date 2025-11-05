@@ -152,7 +152,7 @@ internal sealed class DbBackupService(
                         {
                             Id = y.Id,
                             ErrorMessage = y.ErrorMessage,
-                            IsSuccess = y.IsSuccess,
+                            Status = y.Status,
                             TestedOn = y.TestedOn
                         }).FirstOrDefault()
                 }).ToList();
@@ -173,7 +173,7 @@ internal sealed class DbBackupService(
                         {
                             Id = y.Id,
                             ErrorMessage = y.ErrorMessage,
-                            IsSuccess = y.IsSuccess,
+                            Status = y.Status,
                             TestedOn = y.TestedOn
                         }).FirstOrDefault()
                 }));

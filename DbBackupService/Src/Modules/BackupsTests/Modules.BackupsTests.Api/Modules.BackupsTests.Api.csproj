@@ -17,4 +17,10 @@
       <PackageReference Include="Testcontainers.PostgreSql" Version="4.8.1" />
     </ItemGroup>
 
+    <ItemGroup>
+      <Reference Include="MySqlConnector">
+        <HintPath>..\..\..\..\..\..\..\..\.nuget\packages\mysqlconnector\2.4.0\lib\net9.0\MySqlConnector.dll</HintPath>
+      </Reference>
+    </ItemGroup>
+
 </Project>

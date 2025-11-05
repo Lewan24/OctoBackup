@@ -8,6 +8,7 @@
 @using Client.UI.Data.Services
 @using Microsoft.AspNetCore.SignalR.Client
 @using Modules.Backup.Shared.Dtos
+@using Modules.Backup.Shared.Enums
 @using Modules.Backup.Shared.Hubs
 
 @implements IDisposable
@@ -38,7 +39,7 @@
                 </MudTh>
                 <MudTh>File Location</MudTh>
                 <MudTh>
-                    <MudTableSortLabel SortBy="new Func<PerformedBackupDto, object>(x => x.Test!.IsSuccess)">Test
+                    <MudTableSortLabel SortBy="new Func<PerformedBackupDto, object>(x => x.Test!.Status)">Test
                         Status
                     </MudTableSortLabel>
                 </MudTh>
@@ -63,15 +64,25 @@
                     <MudTd>
                         @if (context.Test is not null)
                         {
-                            if (context.Test.IsSuccess)
+                            switch (context.Test.Status)
                             {
-                                <MudChip T="string" Color="Color.Success" Variant="Variant.Filled">OK</MudChip>
-                            }
-                            else
-                            {
-                                <MudTooltip Text="@context.Test.ErrorMessage" Delay="100">
-                                    <MudChip T="string" Color="Color.Error" Variant="Variant.Filled">Error</MudChip>
-                                </MudTooltip>
+                                case ETestStatus.Success:
+                                    <MudChip T="string" Color="Color.Success" Variant="Variant.Filled">OK</MudChip>
+                                    break;
+                                    
+                                    case ETestStatus.Failure:
+                                    <MudTooltip Text="@context.Test.ErrorMessage" Delay="100">
+                                        <MudChip T="string" Color="Color.Error" Variant="Variant.Filled">Error</MudChip>
+                                    </MudTooltip>
+                                    break;
+                                    
+                                    case ETestStatus.Running:
+                                    <MudChip T="string" Color="Color.Warning" Variant="Variant.Filled">Running</MudChip>
+                                    break;
+                                    
+                                    default:
+                                    <MudChip T="string" Color="Color.Primary" Variant="Variant.Filled">Not implemented status</MudChip>
+                                    break;
                             }
                         }
                         else
@@ -101,15 +112,19 @@
                                              Href="@(Nav.ToAbsoluteUri($"/api/backups/download?id={context.Id}").ToString())"/>
 
                                 <MudMenuItem Icon="@Icons.Material.Filled.PlayArrow"
-                                             Disabled="@((context.Test?.IsSuccess ?? true) && context.Test is not null)">
-                                    @switch (context.Test?.IsSuccess)
+                                             Disabled="@((context.Test?.Status == ETestStatus.Running) && context.Test is not null)">
+                                    @switch (context.Test?.Status)
                                     {
-                                        case true:
+                                        case ETestStatus.Success:
                                             <span>Successful Test</span>
                                             break;
 
-                                        case false:
+                                        case ETestStatus.Failure:
                                             <span>Retry Test</span>
+                                            break;
+                                            
+                                        case ETestStatus.Running:
+                                            <span>Test currently running...</span>
                                             break;
 
                                         default:

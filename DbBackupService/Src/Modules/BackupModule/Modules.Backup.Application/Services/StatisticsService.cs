@@ -5,6 +5,7 @@ using Modules.Auth.Infrastructure.DbContexts;
 using Modules.Backup.Core.Entities.DbContext;
 using Modules.Backup.Infrastructure.DbContexts;
 using Modules.Backup.Shared.Dtos;
+using Modules.Backup.Shared.Enums;
 using OneOf;
 
 namespace Modules.Backup.Application.Services;
@@ -61,7 +62,7 @@ public sealed class StatisticsService(BackupsDbContext appDb,
                 
                 totalTests++;
 
-                if (appDb.BackupsTests.First(x => x.Id == backup.TestId).IsSuccess)
+                if (appDb.BackupsTests.First(x => x.Id == backup.TestId).Status == ETestStatus.Success)
                     successTests++;
             }
         }
@@ -103,7 +104,7 @@ public sealed class StatisticsService(BackupsDbContext appDb,
             .Average();
         
         var totalTests = await appDb.BackupsTests.CountAsync();
-        var successTests = await appDb.BackupsTests.CountAsync(x => x.IsSuccess);
+        var successTests = await appDb.BackupsTests.CountAsync(x => x.Status == ETestStatus.Success);
         var testsSuccessRate = totalTests == 0 ? 0 : (100 * successTests / totalTests);
         
         var dashboard = new AdminDashboardDto

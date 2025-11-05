@@ -1,4 +1,6 @@
-﻿namespace Modules.Backup.Shared.Dtos;
+﻿using System.Data;
+
+namespace Modules.Backup.Shared.Dtos;
 
 public class PerformedBackupDto
 {
