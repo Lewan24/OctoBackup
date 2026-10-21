@@ -1,0 +1,70 @@
+name: octobackup-dbs
+# These are backup targets, not the application's SQLite metadata store.
+services:
+  postgres:
+    image: postgres:16-bookworm
+    restart: unless-stopped
+    networks: [web]
+    environment:
+      POSTGRES_DB: ${POSTGRES_DATABASE:-octobackup_demo}
+      POSTGRES_USER: ${POSTGRES_USER:-backup}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Run node scripts/dev.mjs init first}
+    ports:
+      - "127.0.0.1:${POSTGRES_PORT:-55432}:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: [CMD-SHELL, 'pg_isready -U "$$POSTGRES_USER" -d "$$POSTGRES_DB"']
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+
+  mysql:
+    image: mysql:8.4
+    restart: unless-stopped
+    networks: [web]
+    environment:
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-octobackup_demo}
+      MYSQL_USER: ${MYSQL_USER:-backup}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:?Run node scripts/dev.mjs init first}
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?Set MYSQL_ROOT_PASSWORD in .env}
+    ports:
+      - "127.0.0.1:${MYSQL_PORT:-53306}:3306"
+    volumes:
+      - mysql-data:/var/lib/mysql
+      - ./Backend/docker/mysql-init.sh:/docker-entrypoint-initdb.d/20-backup-user.sh:ro
+    healthcheck:
+      test: [CMD-SHELL, 'MYSQL_PWD="$$MYSQL_ROOT_PASSWORD" mysqladmin ping -h localhost -u root --silent']
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 40s
+
+  sqlserver:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    profiles: [sqlserver]
+    restart: unless-stopped
+    networks: [web]
+    environment:
+      ACCEPT_EULA: "Y"
+      MSSQL_PID: Developer
+      MSSQL_SA_PASSWORD: ${MSSQL_SA_PASSWORD:?Set MSSQL_SA_PASSWORD in .env}
+    ports:
+      - "127.0.0.1:${MSSQL_PORT:-51433}:1433"
+    volumes:
+      - sqlserver-data:/var/opt/mssql
+    healthcheck:
+      test: [CMD-SHELL, 'SQLCMDPASSWORD="$$MSSQL_SA_PASSWORD" /opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -C -Q "SELECT 1" -b -o /dev/null']
+      interval: 15s
+      timeout: 10s
+      retries: 15
+      start_period: 60s
+
+volumes:
+  postgres-data:
+  mysql-data:
+  sqlserver-data:
+
+networks:
+  web:

@@ -1,0 +1,21 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <UserSecretsId>4e9c2df1-841b-4144-9dcf-2a5fcf06f490</UserSecretsId>
+  </PropertyGroup>
+  <ItemGroup>
+    <Content Update="appsettings.Local.json" CopyToOutputDirectory="Never" CopyToPublishDirectory="Never" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.13">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="../Modules/AdministrationModule/Modules.Administration.Api/Modules.Administration.Api.csproj" />
+    <ProjectReference Include="../Modules/AuthModule/Modules.Auth.Api/Modules.Auth.Api.csproj" />
+    <ProjectReference Include="../Modules/BackupModule/Modules.Backup.Api/Modules.Backup.Api.csproj" />
+    <ProjectReference Include="../Modules/CryptoModule/Modules.Crypto.Api/Modules.Crypto.Api.csproj" />
+  </ItemGroup>
+</Project>
