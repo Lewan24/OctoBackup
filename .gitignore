@@ -4,6 +4,23 @@
 ## Get latest from https://github.com/github/gitignore/blob/main/VisualStudio.gitignore
 
 # Custom files
+Frontend/dist/
+Frontend/test-results/
+Frontend/playwright-report/
+Backend/src/Server.Api/wwwroot/
+*.tsbuildinfo
+.env
+**/appsettings.Local.json
+.env.*
+!.env.example
+*.db
+*.db-shm
+*.db-wal
+*.pfx
+*.pem
+data/
+Backend/artifacts/
+.impeccable/
 *drawio.bkp*
 .idea
 Publish/

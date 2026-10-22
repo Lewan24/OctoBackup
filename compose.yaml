@@ -1,0 +1,61 @@
+name: octobackup
+services:
+  api:
+    build:
+      context: .
+      dockerfile: Backend/Dockerfile
+    restart: unless-stopped
+    environment:
+      CRYPTO_KEY: ${CRYPTO_KEY:?Run node scripts/dev.mjs init first}
+      Bootstrap__AdminEmail: ${ADMIN_EMAIL:?Set ADMIN_EMAIL in .env}
+      Bootstrap__AdminPassword: ${ADMIN_PASSWORD:?Set ADMIN_PASSWORD in .env}
+      AllowedHosts: ${ALLOWED_HOSTS:-localhost;127.0.0.1}
+      Security__AllowedDatabaseHosts__0: ${DATABASE_HOST:-host.docker.internal}
+      Security__AllowedDatabaseHosts__1: host.docker.internal
+      Security__AllowedDatabaseHosts__2: postgres
+      Security__AllowedDatabaseHosts__3: mysql
+      Security__AllowedDatabaseHosts__4: sqlserver
+      ReverseProxy__Enabled: "true"
+      ReverseProxy__KnownProxies__0: ${FRONTEND_IP:-172.30.85.2}
+      OCTOBACKUP_SSH_HOST_KEYS: /certs/ssh-host-keys.json
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    volumes:
+      - octobackup-data:/data
+      - ./certs:/certs:ro
+    read_only: true
+    tmpfs:
+      - /tmp
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    networks: [web]
+
+  frontend:
+    build:
+      context: .
+      dockerfile: Frontend/Dockerfile
+    restart: unless-stopped
+    depends_on:
+      api:
+        condition: service_healthy
+    ports:
+      - "127.0.0.1:${FRONTEND_PORT:-8443}:8443"
+    volumes:
+      - ./certs:/certs:ro
+    read_only: true
+    tmpfs:
+      - /tmp
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    networks:
+      web:
+        ipv4_address: ${FRONTEND_IP:-172.30.85.2}
+
+networks:
+  web:
+    ipam:
+      config:
+        - subnet: ${WEB_SUBNET:-172.30.85.0/24}
+          ip_range: ${WEB_DYNAMIC_RANGE:-172.30.85.128/25}
+volumes:
+  octobackup-data:

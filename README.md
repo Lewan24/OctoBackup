@@ -1,91 +1,125 @@
-# 💾 OctoBackup  
+# OctoBackup
 
-[🇵🇱 Read in Polish](README_PL.md)
+[Po polsku](docs/README_PL.md)
 
----
+Self-hosted database backup management with a **.NET 10 API** and **React +
+TypeScript frontend**. Manage connections, server access, schedules and backup
+history from a compact dark operations dashboard with violet gradients, lime
+actions and responsive layouts for technical teams.
 
-![.NET](https://img.shields.io/badge/.NET-9-blueviolet)
-![Blazor](https://img.shields.io/badge/Blazor-WebAssembly-purple?logo=blazor&logoColor=white)
-![Docker](https://img.shields.io/badge/Docker-Ready-blue?logo=docker&logoColor=white)
-![Database](https://img.shields.io/badge/Databases-MySQL%20%7C%20PostgreSQL%20%7C%20SqlServer-red)
-![License](https://img.shields.io/badge/License-MIT-green)
+Manual and scheduled backups enter a persistent queue with live status, duplicate
+prevention and cancel/remove actions. Requests wait 20 seconds by default; admins
+can configure the cancellation window and spacing in Application settings.
 
+## Get started
 
-[![.NET](https://github.com/Lewan24/DatabasesBackupServiceDotNet/actions/workflows/dotnet.yml/badge.svg)](https://github.com/Lewan24/DatabasesBackupServiceDotNet/actions/workflows/dotnet.yml)
+Requirements: Docker Desktop (Linux containers), or .NET SDK 10.0.302+ and Node.js
+22.12+ for console development.
 
----
+```powershell
+node scripts/dev.mjs init
+```
 
-**OctoBackup** is an open-source, containerized application built with **.NET 9 Blazor WebAssembly** using a modular monolith architecture.  
-The application allows **centralized management of database backups across multiple servers** – currently supporting **MySQL**, **PostgreSQL** and **MS SQL Server**.  
+This creates a private, ignored `.env` with random keys and passwords. Existing
+settings are preserved. Sign-in credentials are `ADMIN_EMAIL` / `ADMIN_PASSWORD`
+in that file.
 
----
+**Both applications in Docker:**
 
-## 🔑 Key Features  
+```powershell
+docker compose up --build -d --wait
+```
 
-- 📅 Schedule automatic backups  
-- 🔐 Encryption and compression of backup files  
-- 📊 Backup history and statistics  
-- 📧 Email notifications about backup status  
-- 👥 **Roles system and Server groups** – the administrator can assign users to servers, and allow users to access (e.g., view the latest backup of a given database, server configuration, tunnel settings etc.)  
-- 🗄️ Configuration and management data are stored in **SQLite** (lightweight embedded database)  
+Open **https://localhost:8443**. The default local certificate is self-signed; mount
+your trusted certificate/key in `certs/` to replace it. React/Nginx proxies the
+private API and SignalR on the same browser origin.
 
----
+**Only databases in Docker, applications in the console:**
 
-## 🌟 Why this app?  
+```powershell
+docker compose -f compose.dbs.yaml up -d --wait
+dotnet restore OctoBackup.sln
+npm ci --prefix Frontend
+node scripts/dev.mjs
+```
 
-🔹 Most free backup tools only support 1–2 databases and require paid upgrades for more advanced features.  
-🔹 This application was created as a **fully free and flexible solution** for managing multiple databases in one place.  
-🔹 It also provides **security (encryption, authorization)** and **easy user management**.  
+Open **http://127.0.0.1:5173**; the API runs on port 5080. Use `api` or `frontend`
+after the launcher command to run either project in its own terminal. Host-run
+exports require local dump tools. SQL Server is an optional Compose profile.
 
----
+**Run the API directly:**
 
-## 🏗️ System Architecture  
+```powershell
+dotnet run --project Backend/src/Server.Api
+```
 
-- **UI** – Blazor WebAssembly  
-- **API/Server** – business logic, backup engine, database communication  
-- **Application Database** – SQLite (users, groups, configurations, backup history)  
-- **Authorization** – users, roles, servers groups 
-- **Backup Engine** – generation, encryption, compression, archiving of backups  
-- **Notifications** – email system (statuses, reminders, errors)  
-- **Testing** – option to restore and verify backups in a temporary test container environment (if set, tests runs automatically)
+Or run `dotnet run` inside the API directory. It starts at **http://127.0.0.1:5080**,
+creates private development settings in `Backend/src/Server.Api/appsettings.Local.json`
+and uses `Backend/data` for storage. The private file contains initial sign-in
+credentials; an existing `.env` key is preserved. Start React separately with
+`npm run dev --prefix Frontend`.
 
----
+See [operations and configuration](docs/OPERATIONS.md) for configuration precedence,
+database ports, combined deployment, trusted proxy settings and recovery.
 
-## 🚀 Setup & Configuration  
+## Repository
 
-Go to the **[WIKI](https://github.com/Lewan24/OctoBackup/wiki)** section and follow the setup instructions.  
+```text
+Backend/             .NET API, modules, tests, Dockerfile and generated artifacts
+Frontend/            React app, Nginx proxy, tests and Dockerfile
+docs/                Architecture, security, progress, roadmap and diagrams
+scripts/dev.mjs      Private local configuration and console launcher
+compose.yaml         API + frontend containers
+compose.dbs.yaml     PostgreSQL/MySQL targets; optional SQL Server
+OctoBackup.sln       Backend solution
+```
 
----
+`Backend/artifacts/publish` contains generated release binaries. It is ignored,
+regenerable build output, not source or live backup data.
 
-## 🗺️ Roadmap  
+## Features and limits
 
-### ✅ Completed  
-- Support for **MySQL**  
-- Support for **PostgreSQL**  
-- **UI Panel** in Blazor  
-- User, role & group management system  
-- Backup scheduling  
-- Email notifications  
-- Configuration storage in **SQLite**
-- Support for **MS SQL Server**
-- Statistics and reporting in UI
-- Tunnels compability
-- SignalR 
+Working workflows include connections/SSH, manual backups, schedules, authorized
+history/downloads, user/access management and account settings. SQLite stores app
+metadata; PostgreSQL/MySQL/SQL Server are backup targets. New credentials use AES-GCM;
+cookie sessions use CSRF, rate limits and server-side access checks.
 
-### 🛠️ In Progress / Planned  
-- Advanced backup testing (temporary containers + SQL check queries)  
-- Multilanguage
+Administrators can open **Application settings** to approve database/SSH hosts,
+control public registration and confirmation, and change retention defaults and
+schedule polling. If a server host is blocked, add its exact hostname/IP there and
+save before creating the connection. Changes persist without an API restart.
+MySQL exports detect client capabilities and report actionable failures. See
+[MySQL backup troubleshooting](docs/OPERATIONS.md#mysql-dump-failures) for required
+client tools, TLS trust and routine-visibility grants.
 
----
+Restore tests run in disposable containers, with optional automatic testing after
+each successful backup and manual **Test / preview** from Backup history. The saved
+report shows sampled tables and rows. Enable the deployment runtime first, then
+the administrator toggle; see [restore-test setup](docs/OPERATIONS.md#restore-testing).
+The UI explains disabled deployments. After changing private runtime settings,
+restart the API and retry the test; existing reports remain accessible.
+Dump headers select compatible, deployment-approved engine versions. Preload the
+required image; PostgreSQL 17 dumps need a 17+ test server. MySQL/MariaDB restores
+inspect the archive's original database and preserve binary values.
+Email integration, MFA/recovery and backup-file encryption remain planned.
+ZIP compression is not encryption. SQL Server downloads require a
+shared backup filesystem at the same absolute path. Use one app replica per data
+store. See [security](docs/SECURITY.md) for the controls and their limits.
 
-## 📜 License  
-This project is released under the MIT license.<br>
-You are free to use it commercially and privately, extend it, and adapt it to your needs.  
+## Verification
 
----
+```powershell
+dotnet test Backend/tests/OctoBackup.Tests
+npm test --prefix Frontend
+npm run build --prefix Frontend
+node Frontend/node_modules/@playwright/test/cli.js install chromium
+npm run test:e2e --prefix Frontend
+```
 
-## 🤝 Contributing  
-Want to contribute?<br>
-Open an issue 🐛 in [Issues](../../issues)<br>
-Propose a feature 💡<br>
-Submit a pull request 🚀
+Run backend builds before browser tests. Test results and remaining release checks
+are in [migration progress](docs/MIGRATION.md).
+
+[Architecture](docs/ARCHITECTURE.md) ? [Roadmap](docs/ROADMAP.md) |
+[Product](docs/PRODUCT.md) ? [Design](docs/DESIGN.md) ? [Agent guidance](AGENTS.md)
+
+MIT licensed; see [LICENSE](LICENSE).
