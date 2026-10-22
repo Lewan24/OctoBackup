@@ -70,6 +70,7 @@ public sealed class DumpProcessTests
         Assert.Contains("--protocol=TCP", args);
         Assert.Contains("--port=54321", args);
         Assert.Contains("--routines", args);
+          Assert.Contains("--hex-blob", args);
         Assert.Contains("--get-server-public-key", args);
         var secure = workbench.Arguments("db.example", 3306, "backup", "app", true);
         Assert.Contains("--ssl-mode=VERIFY_IDENTITY", secure);

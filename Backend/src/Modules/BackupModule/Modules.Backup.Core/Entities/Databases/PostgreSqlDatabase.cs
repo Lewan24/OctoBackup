@@ -9,7 +9,7 @@ public sealed class PostgreSqlDatabase(DbServerConnection connection, DbServerTu
     protected override Task PerformBackupInternal(string path, CancellationToken token)
     {
         var (host, port) = GetHostAndPort();
-        return DumpProcess.Run("pg_dump", ["--host=" + host, "--port=" + port, "--username=" + GetServerConnection().DbUser, "--no-password", "--dbname=" + GetServerConnection().DbName],
+        return DumpProcess.Run("pg_dump", ["--host=" + host, "--port=" + port, "--username=" + GetServerConnection().DbUser, "--no-password", "--no-owner", "--no-privileges", "--dbname=" + GetServerConnection().DbName],
             new Dictionary<string, string?> { ["PGPASSWORD"] = Crypto.Decrypt(GetServerConnection().DbPasswd), ["PGSSLMODE"] = GetServerConnection().SsL ? "verify-full" : "disable" }, path, cancellationToken: token);
     }
 }

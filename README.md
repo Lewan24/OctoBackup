@@ -92,8 +92,17 @@ MySQL exports detect client capabilities and report actionable failures. See
 [MySQL backup troubleshooting](docs/OPERATIONS.md#mysql-dump-failures) for required
 client tools, TLS trust and routine-visibility grants.
 
-Restore verification, email integration, MFA/recovery and backup-file encryption
-remain planned. ZIP compression is not encryption. SQL Server downloads require a
+Restore tests run in disposable containers, with optional automatic testing after
+each successful backup and manual **Test / preview** from Backup history. The saved
+report shows sampled tables and rows. Enable the deployment runtime first, then
+the administrator toggle; see [restore-test setup](docs/OPERATIONS.md#restore-testing).
+The UI explains disabled deployments. After changing private runtime settings,
+restart the API and retry the test; existing reports remain accessible.
+Dump headers select compatible, deployment-approved engine versions. Preload the
+required image; PostgreSQL 17 dumps need a 17+ test server. MySQL/MariaDB restores
+inspect the archive's original database and preserve binary values.
+Email integration, MFA/recovery and backup-file encryption remain planned.
+ZIP compression is not encryption. SQL Server downloads require a
 shared backup filesystem at the same absolute path. Use one app replica per data
 store. See [security](docs/SECURITY.md) for the controls and their limits.
 

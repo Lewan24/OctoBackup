@@ -146,10 +146,32 @@ namespace Modules.Backup.Infrastructure.DbContexts.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("TEXT");
 
+                    b.Property<Guid?>("ActiveBackupId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<bool>("Automatic")
+                        .HasColumnType("INTEGER");
+
                     b.Property<Guid>("BackupId")
                         .HasColumnType("TEXT");
 
+                    b.Property<string>("DatabaseName")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("DatabaseType")
+                        .HasColumnType("INTEGER");
+
                     b.Property<string>("ErrorMessage")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime?>("FinishedOn")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("PreviewJson")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("RequestedById")
                         .HasColumnType("TEXT");
 
                     b.Property<int>("Status")
@@ -159,6 +181,11 @@ namespace Modules.Backup.Infrastructure.DbContexts.Migrations
                         .HasColumnType("TEXT");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("ActiveBackupId")
+                        .IsUnique();
+
+                    b.HasIndex("Status", "TestedOn");
 
                     b.ToTable("BackupsTests");
                 });
@@ -276,6 +303,12 @@ namespace Modules.Backup.Infrastructure.DbContexts.Migrations
 
                     b.Property<DateTime>("CreatedOn")
                         .HasColumnType("TEXT");
+
+                    b.Property<string>("DatabaseName")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int?>("DatabaseType")
+                        .HasColumnType("INTEGER");
 
                     b.Property<string>("FilePath")
                         .IsRequired()

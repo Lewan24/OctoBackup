@@ -57,6 +57,7 @@ public sealed class BackupQueueProcessor(BackupsDbContext db, BackupQueueService
             try
             {
                 await ValidateExecution(request, cancellation.Token);
+                var sourceSnapshot = await db.DbConnections.AsNoTracking().SingleAsync(s => s.Id == request.ServerId, cancellation.Token);
                 artifact = await executor.Execute(request, cancellation.Token);
                 cancellation.Token.ThrowIfCancellationRequested();
                 if (!SafeBackupPath.IsWithinRoot(artifact.FilePath) || !File.Exists(artifact.FilePath))
@@ -71,8 +72,13 @@ public sealed class BackupQueueProcessor(BackupsDbContext db, BackupQueueService
                             .SetProperty(r => r.ActiveDatabaseKey, (string?)null).SetProperty(r => r.FinishedAt, finished)
                             .SetProperty(r => r.BackupId, artifact.Id).SetProperty(r => r.Message, "Backup completed."), cancellation.Token);
                     if (completed == 0) throw new OperationCanceledException("Cancellation won completion.");
-                    db.Backups.Add(new PerformedBackup { Id = artifact.Id, ServerConnectionId = request.ServerId,
-                        Name = artifact.Name, CreatedOn = clock.GetLocalNow().DateTime, FilePath = artifact.FilePath });
+                    var server = sourceSnapshot;
+                    var backup = new PerformedBackup { Id = artifact.Id, ServerConnectionId = request.ServerId,
+                        Name = artifact.Name, CreatedOn = clock.GetLocalNow().DateTime, FilePath = artifact.FilePath,
+                        DatabaseType = server.DbType, DatabaseName = server.DbName };
+                    db.Backups.Add(backup);
+                    if (settings.Current.AutomaticRestoreTests)
+                        db.BackupsTests.Add(RestoreTestService.Create(backup, server, null, true));
                     await db.SaveChangesAsync(cancellation.Token);
                     commitAttempted = true;
                     await transaction.CommitAsync(cancellation.Token);
@@ -165,7 +171,8 @@ public sealed class BackupQueueProcessor(BackupsDbContext db, BackupQueueService
             var config = await db.Configurations.AsNoTracking().FirstOrDefaultAsync(c => c.ServerId == serverId);
             if (config is null) return;
             var cutoff = clock.GetLocalNow().DateTime.AddDays(-config.TimeInDaysToHoldBackups);
-            var expired = await db.Backups.Where(b => b.ServerConnectionId == serverId && b.CreatedOn < cutoff && !b.IsSoftDeleted).ToListAsync();
+            var expired = await db.Backups.Where(b => b.ServerConnectionId == serverId && b.CreatedOn < cutoff && !b.IsSoftDeleted &&
+                !db.BackupsTests.Any(t => t.ActiveBackupId == b.Id)).ToListAsync();
             foreach (var backup in expired)
             {
                 if (!SafeBackupPath.IsWithinRoot(backup.FilePath)) continue;

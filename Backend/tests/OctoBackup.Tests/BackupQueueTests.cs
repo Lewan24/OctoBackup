@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Hosting;
 using Modules.Auth.Core.Entities;
@@ -50,7 +51,7 @@ public sealed class QueueTestExecutor : IBackupExecutor
     }
 }
 
-public sealed class QueueFactory : WebApplicationFactory<Program>
+public class QueueFactory : WebApplicationFactory<Program>
 {
     public QueueClock Clock { get; } = new();
     public QueueTestExecutor Executor { get; } = new();
@@ -65,9 +66,11 @@ public sealed class QueueFactory : WebApplicationFactory<Program>
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
         builder.UseEnvironment("Development");
+        builder.ConfigureAppConfiguration((_, config) => config.AddInMemoryCollection(new Dictionary<string, string?> { ["RestoreTests:Enabled"] = "false" }));
         builder.ConfigureServices(services =>
         {
-            foreach (var service in services.Where(s => s.ServiceType == typeof(IHostedService) && s.ImplementationType == typeof(BackupWorker)).ToList()) services.Remove(service);
+            foreach (var service in services.Where(s => s.ServiceType == typeof(IHostedService) &&
+                (s.ImplementationType == typeof(BackupWorker) || s.ImplementationType == typeof(RestoreTestWorker))).ToList()) services.Remove(service);
             services.RemoveAll<TimeProvider>(); services.AddSingleton<TimeProvider>(Clock);
             services.RemoveAll<IBackupExecutor>(); services.AddSingleton<IBackupExecutor>(Executor);
         });

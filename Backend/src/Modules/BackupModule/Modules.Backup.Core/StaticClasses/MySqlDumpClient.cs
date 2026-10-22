@@ -31,7 +31,7 @@ public sealed record MySqlDumpClient(string Executable, bool IsMariaDb, IReadOnl
         else if (Options.Contains("ssl-verify-server-cert")) args.Add(tls ? "--ssl-verify-server-cert" : "--ssl=0");
         else throw new DumpFailureException(Executable, null, "The dump client cannot enforce the configured TLS policy. Install a supported MySQL/MariaDB dump client.");
 
-        args.AddRange(["--protocol=TCP", "--single-transaction", "--no-tablespaces", "--routines", "--events", "--triggers", "--default-character-set=utf8mb4"]);
+        args.AddRange(["--protocol=TCP", "--single-transaction", "--no-tablespaces", "--routines", "--events", "--triggers", "--hex-blob", "--default-character-set=utf8mb4"]);
         if (Options.Contains("column-statistics")) args.Add("--column-statistics=0");
         // Per-database archives are logical restores, not replication provisioning.
         if (!IsMariaDb && Options.Contains("set-gtid-purged")) args.Add("--set-gtid-purged=OFF");

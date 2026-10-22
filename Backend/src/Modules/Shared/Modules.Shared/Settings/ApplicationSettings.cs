@@ -13,6 +13,7 @@ public sealed record ApplicationSettings
     public int SchedulePollSeconds { get; init; } = 300;
     public int BackupQueueDelaySeconds { get; init; } = 20;
     public int BackupQueueSpacingSeconds { get; init; } = 5;
+    public bool AutomaticRestoreTests { get; init; }
     public DateTimeOffset? UpdatedAt { get; init; }
     public string? UpdatedBy { get; init; }
 }

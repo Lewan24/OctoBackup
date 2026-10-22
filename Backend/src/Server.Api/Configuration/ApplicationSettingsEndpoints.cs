@@ -11,10 +11,12 @@ public static class ApplicationSettingsEndpoints
         var group = app.MapGroup("/api/administration/settings")
             .RequireAuthorization(policy => policy.RequireRole(AppRoles.Admin));
         group.MapGet("", (IApplicationSettings settings) => Results.Ok(settings.Current));
-        group.MapPost("", async (ApplicationSettings proposed, FileApplicationSettings settings, HttpContext context, ILogger<FileApplicationSettings> logger, CancellationToken token) =>
+        group.MapPost("", async (ApplicationSettings proposed, FileApplicationSettings settings, IConfiguration configuration, HttpContext context, ILogger<FileApplicationSettings> logger, CancellationToken token) =>
         {
             try
             {
+                if (proposed.AutomaticRestoreTests && !settings.Current.AutomaticRestoreTests && !configuration.GetValue("RestoreTests:Enabled", false))
+                    return Results.Problem(statusCode: 400, title: "Restore testing is disabled in this deployment. Set RestoreTests:Enabled=true, configure Docker and restart the API before enabling automatic tests.");
                 var actor = context.User.FindFirstValue(ClaimTypes.NameIdentifier)!;
                 var saved = await settings.Save(proposed, actor, token);
                 if (saved is null) return Results.Problem(statusCode: 409, title: "Settings changed in another session. Reload settings and apply your changes again.");

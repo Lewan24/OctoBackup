@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Configuration;
 using Modules.Backup.Application.Interfaces;
 using Modules.Backup.Shared.Dtos;
 using Modules.Shared.Attributes;
@@ -41,6 +42,8 @@ internal static class BackupsEndpoints
 
         api.MapPost("TestBackup", BackupsOperations.TestBackup)
             .WithSummary("Test backup file in prepared test container");
+        api.MapGet("RestoreReport", BackupsOperations.RestoreReport);
+        api.MapGet("RestoreAvailability", (IConfiguration config) => Results.Ok(new { enabled = config.GetValue("RestoreTests:Enabled", false) }));
 
         return app;
     }
@@ -108,10 +111,24 @@ internal abstract record BackupsOperations
         );
     }
 
-    public static Task<IResult> TestBackup(
+    public static async Task<IResult> TestBackup(
         HttpContext context,
+        [FromServices] RestoreTestService service,
         [FromBody] Guid id)
     {
-        return Task.FromResult<IResult>(Results.Problem(statusCode: 501, title: "This operation is not implemented."));
+        try { return Results.Accepted("/api/backups/RestoreReport?id=" + id, await service.Enqueue(id, context.User, context.RequestAborted)); }
+        catch (BackupQueueException error) { return Results.Problem(statusCode: error.StatusCode, title: error.Message); }
+    }
+
+    public static async Task<IResult> RestoreReport(HttpContext context, [FromServices] RestoreTestService service, [FromQuery] Guid id)
+    {
+        context.Response.Headers.CacheControl = "no-store";
+        // Ok(null) writes an empty body. Query clients need an explicit JSON null.
+        try
+        {
+            var report = await service.Get(id, context.User, context.RequestAborted);
+            return report is null ? Results.Text("null", "application/json") : Results.Ok(report);
+        }
+        catch (BackupQueueException error) { return Results.Problem(statusCode: error.StatusCode, title: error.Message); }
     }
 }

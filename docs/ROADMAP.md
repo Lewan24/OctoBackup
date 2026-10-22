@@ -9,6 +9,11 @@ Application settings manage database/SSH allowlists, public registration and
 confirmation, new-server retention defaults and schedule polling without restart.
 Manual and scheduled work use a persistent, delayed queue with scoped status,
 duplicate prevention, cancellation/removal and administrator timing controls.
+Durable restore tests support automatic opt-in and manual saved data previews in
+isolated, bounded Docker containers. Live real-export/restore checks passed for
+MySQL 5.7/8.4, MariaDB 10.11 and PostgreSQL 16/17/18, including populated/empty tables,
+Unicode, binary samples, hex exports and early invalid SQL rejection. Native
+SQL Server and broader version/schema matrices still require live validation.
 Authentication and security controls are detailed in SECURITY.md. Test evidence is
 recorded in MIGRATION.md; distinguish code support from live-provider verification.
 
@@ -22,9 +27,10 @@ recorded in MIGRATION.md; distinguish code support from live-provider verificati
 
 ## Next implementation priorities
 
-1. Isolated restore-verification jobs with bounded resources, no Docker socket in
-   the web host, persistent results and per-provider restore checks. Current UI
-   truthfully reports unverified backups and unsupported APIs return 501.
+1. Move restore execution into a separately deployed worker with no daemon access
+   in the web host. The current opt-in runner requires trusted dedicated Docker
+   access from the API process. Validate real engine/version/extension matrices,
+   native SQL Server backups and large schemas; add source manifests/checksums.
 2. Offline credential rekey utility and migration of all legacy CBC ciphertext.
    Add optional backup encryption, checksum/provenance and audited restore/download.
 3. Verified email change, password recovery, MFA and account invitation lifecycle.

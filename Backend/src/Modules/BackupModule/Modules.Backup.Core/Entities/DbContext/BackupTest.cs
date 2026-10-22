@@ -9,4 +9,11 @@ public sealed record BackupTest
     public DateTime TestedOn { get; set; }
     public ETestStatus Status { get; set; } = ETestStatus.Running;
     public string? ErrorMessage { get; set; }
+    public Guid? ActiveBackupId { get; set; }
+    public string? RequestedById { get; set; }
+    public bool Automatic { get; set; }
+    public DatabaseType DatabaseType { get; set; }
+    public string DatabaseName { get; set; } = "";
+    public DateTime? FinishedOn { get; set; }
+    public string? PreviewJson { get; set; }
 }

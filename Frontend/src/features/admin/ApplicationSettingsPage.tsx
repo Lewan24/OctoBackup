@@ -9,6 +9,10 @@ import {
 } from "lucide-react";
 import { api } from "../../shared/api";
 import {
+  useRestoreAvailability,
+  restoreRuntimeHelp,
+} from "../../shared/restoreTesting";
+import {
   ErrorMessage,
   Field,
   Loading,
@@ -25,6 +29,7 @@ export type ApplicationSettings = {
   schedulePollSeconds: number;
   backupQueueDelaySeconds: number;
   backupQueueSpacingSeconds: number;
+  automaticRestoreTests: boolean;
   updatedAt: string | null;
   updatedBy: string | null;
 };
@@ -128,11 +133,15 @@ function SettingsEditor({
   onSave: (settings: ApplicationSettings) => void;
   onReload: () => void;
 }) {
+  const availability = useRestoreAvailability();
   const [hosts, setHosts] = useState(settings.allowedDatabaseHosts.join("\n"));
   const [registration, setRegistration] = useState(
     settings.registrationEnabled,
   );
   const [autoConfirm, setAutoConfirm] = useState(settings.autoConfirmAccounts);
+  const [automaticTests, setAutomaticTests] = useState(
+    settings.automaticRestoreTests,
+  );
   const [retention, setRetention] = useState(
     String(settings.defaultRetentionDays),
   );
@@ -144,6 +153,7 @@ function SettingsEditor({
     String(settings.backupQueueSpacingSeconds),
   );
   const dirty =
+    automaticTests !== settings.automaticRestoreTests ||
     hosts !== settings.allowedDatabaseHosts.join("\n") ||
     registration !== settings.registrationEnabled ||
     autoConfirm !== settings.autoConfirmAccounts ||
@@ -155,6 +165,7 @@ function SettingsEditor({
     setHosts(settings.allowedDatabaseHosts.join("\n"));
     setRegistration(settings.registrationEnabled);
     setAutoConfirm(settings.autoConfirmAccounts);
+    setAutomaticTests(settings.automaticRestoreTests);
     setRetention(String(settings.defaultRetentionDays));
     setPolling(String(settings.schedulePollSeconds));
     setQueueDelay(String(settings.backupQueueDelaySeconds));
@@ -178,6 +189,7 @@ function SettingsEditor({
                 .filter(Boolean),
               registrationEnabled: registration,
               autoConfirmAccounts: autoConfirm,
+              automaticRestoreTests: automaticTests,
               defaultRetentionDays: Number(retention),
               schedulePollSeconds: Number(polling),
               backupQueueDelaySeconds: Number(queueDelay),
@@ -269,6 +281,25 @@ function SettingsEditor({
             <Archive size={18} />
             <h2 id="backup-settings">Backup defaults</h2>
           </div>
+          <label className="check">
+            <input
+              type="checkbox"
+              checked={automaticTests}
+              disabled={!automaticTests && availability.data?.enabled !== true}
+              onChange={(event) => setAutomaticTests(event.target.checked)}
+            />
+            Automatically restore-test successful backups
+          </label>
+          <ErrorMessage error={availability.error} />
+          {availability.data?.enabled === false && (
+            <p className="notice">{restoreRuntimeHelp}</p>
+          )}
+          <p className="hint">
+            Requires the deployment restore worker, Docker access and preloaded
+            engine images. When disabled, manual tests remain available; waiting
+            automatic tests are skipped. A running test finishes normally. Saved
+            previews contain sampled backup data.
+          </p>
           <p>
             Set defaults for new connections and the interval for checking
             scheduled work.

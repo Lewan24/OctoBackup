@@ -60,9 +60,10 @@ public sealed class StatisticsService(BackupsDbContext appDb,
                 if (backup.TestId is null)
                     continue;
 
+                var test = appDb.BackupsTests.FirstOrDefault(x => x.Id == backup.TestId);
+                if (test is null || test.Status is not (ETestStatus.Success or ETestStatus.Failure)) continue;
                 totalTests++;
-
-                if (appDb.BackupsTests.First(x => x.Id == backup.TestId).Status == ETestStatus.Success)
+                if (test.Status == ETestStatus.Success)
                     successTests++;
             }
         }
@@ -103,7 +104,7 @@ public sealed class StatisticsService(BackupsDbContext appDb,
             .DefaultIfEmpty(0)
             .Average();
 
-        var totalTests = await appDb.BackupsTests.CountAsync();
+        var totalTests = await appDb.BackupsTests.CountAsync(x => x.Status == ETestStatus.Success || x.Status == ETestStatus.Failure);
         var successTests = await appDb.BackupsTests.CountAsync(x => x.Status == ETestStatus.Success);
         var testsSuccessRate = totalTests == 0 ? 0 : (100 * successTests / totalTests);
 

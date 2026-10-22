@@ -36,6 +36,10 @@ high; mobile inputs are 42px high with 16px text to avoid browser zoom.
   connections, then enabled schedules. No decorative chart substitutes for data.
 - Forms, tables, server connections, settings and access management share dark
   surfaces, restrained dividers and explicit loading/error/empty states.
+- Backup history links to a restore report with manual test/retry, explicit queue
+  and failure states, a native sampled-table selector and a horizontally scrollable
+  read-only snapshot. Empty tables, NULLs and truncation are labeled. Samples use
+  existing panel/table tokens and do not imply complete source verification.
 - Database engines use subtle distinct accents; enabled/paused/error states always
   have text. Enabled means configured as enabled, not a successful health probe.
 - Realtime indicator reflects actual SignalR connection state. Refresh explicitly

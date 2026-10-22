@@ -19,6 +19,10 @@ public static class Extensions
         services.AddScoped<BackupQueueService>();
         services.AddScoped<BackupQueueProcessor>();
         services.AddScoped<IBackupExecutor, BackupExecutor>();
+        services.AddSingleton<RestoreTestCoordinator>();
+        services.AddScoped<RestoreTestService>();
+        services.AddScoped<IRestoreTestRunner, DockerRestoreTestRunner>();
+        services.AddSingleton<IRestoreContainerCommands, DockerRestoreContainerCommands>();
 
         return services;
     }

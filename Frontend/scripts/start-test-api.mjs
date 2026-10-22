@@ -28,6 +28,7 @@ const child = spawn(
       ...process.env,
       ASPNETCORE_ENVIRONMENT: "Development",
       Hosting__ServeFrontend: "true",
+      RestoreTests__Enabled: "false",
       OCTOBACKUP_DATA: join(tmpdir(), `octobackup-e2e-${randomUUID()}`),
       CRYPTO_KEY: randomBytes(32).toString("base64"),
       Bootstrap__AdminEmail: "admin@e2e.example",

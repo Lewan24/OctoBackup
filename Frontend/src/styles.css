@@ -1898,3 +1898,21 @@ fieldset {
     flex-wrap: wrap;
   }
 }
+/* Saved restore samples use the existing operations surfaces and scrolling tables. */
+.restore-table-select {
+  display: grid;
+  gap: 8px;
+  max-width: 480px;
+  margin-block: 20px;
+}
+.restore-data td {
+  max-width: 320px;
+  min-width: 100px;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  vertical-align: top;
+}
+.restore-data caption {
+  text-align: start;
+  padding-block: 12px;
+}

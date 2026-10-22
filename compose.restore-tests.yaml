@@ -1,0 +1,12 @@
+# Opt-in. The Docker socket grants daemon control; use a dedicated test daemon/host.
+# Preload the three deployment-selected images on that daemon before testing.
+services:
+  api:
+    build:
+      target: restore-runner
+    environment:
+      RestoreTests__Enabled: "true"
+    group_add:
+      - "${RESTORE_DOCKER_GID:?Set RESTORE_DOCKER_GID to the socket group ID}"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock

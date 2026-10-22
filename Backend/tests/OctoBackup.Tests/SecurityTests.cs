@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Configuration;
 using Modules.Auth.Core.Entities;
 using Modules.Backup.Core.Entities.DbContext;
 using Modules.Backup.Core.StaticClasses;
@@ -22,7 +23,11 @@ public sealed class AppFactory : WebApplicationFactory<Program>
         Environment.SetEnvironmentVariable("OCTOBACKUP_DATA", Path.Combine(Path.GetTempPath(), "octobackup-tests-" + Guid.NewGuid().ToString("N")));
         Environment.SetEnvironmentVariable("CRYPTO_KEY", Convert.ToBase64String(RandomNumberGenerator.GetBytes(32)));
     }
-    protected override void ConfigureWebHost(IWebHostBuilder builder) => builder.UseEnvironment("Development");
+    protected override void ConfigureWebHost(IWebHostBuilder builder)
+    {
+        builder.UseEnvironment("Development");
+        builder.ConfigureAppConfiguration((_, config) => config.AddInMemoryCollection(new Dictionary<string, string?> { ["RestoreTests:Enabled"] = "false" }));
+    }
 }
 
 public sealed class SecurityTests(AppFactory factory) : IClassFixture<AppFactory>
@@ -83,7 +88,7 @@ public sealed class SecurityTests(AppFactory factory) : IClassFixture<AppFactory
         using var adminClient = factory.CreateClient();
         Assert.Equal(HttpStatusCode.NoContent, (await Post(adminClient, "/api/auth/Login", new { email = "admin@test.example", password = "StrongPassword123!" })).StatusCode);
         Assert.Equal(HttpStatusCode.BadRequest, (await Post(adminClient, "/api/servers/CreateServer", new { connectionName = "Unapproved", serverHost = "169.254.169.254", serverPort = 3306, dbName = "app", dbUser = "root", dbPasswd = "secret" })).StatusCode);
-        Assert.Equal(HttpStatusCode.NotImplemented, (await Post(adminClient, "/api/backups/TestBackup", Guid.NewGuid())).StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound, (await Post(adminClient, "/api/backups/TestBackup", Guid.NewGuid())).StatusCode);
         using var blockedClient = factory.CreateClient();
         Assert.Equal(HttpStatusCode.NoContent, (await Post(blockedClient, "/api/auth/Login", new { email = "operator@test.example", password = "AnotherStrong123!" })).StatusCode);
         Assert.Equal(HttpStatusCode.OK, (await Post(adminClient, "/api/administration/ToggleUserBlockade", operatorId)).StatusCode);

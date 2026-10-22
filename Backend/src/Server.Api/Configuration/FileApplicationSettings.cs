@@ -25,7 +25,8 @@ public sealed class FileApplicationSettings : IApplicationSettings, IDisposable
                 DefaultRetentionDays = config.GetValue("Backups:DefaultRetentionDays", 4),
                 SchedulePollSeconds = config.GetValue("Backups:SchedulePollSeconds", 300),
                 BackupQueueDelaySeconds = config.GetValue("Backups:QueueDelaySeconds", 20),
-                BackupQueueSpacingSeconds = config.GetValue("Backups:QueueSpacingSeconds", 5)
+                BackupQueueSpacingSeconds = config.GetValue("Backups:QueueSpacingSeconds", 5),
+                AutomaticRestoreTests = config.GetValue("RestoreTests:Automatic", false)
             });
     }
 

@@ -105,6 +105,7 @@ builder.Services.AddAdministrationModule();
 builder.Services.AddCryptoModule();
 builder.Services.AddSignalR(o => o.MaximumReceiveMessageSize = 16 * 1024);
 builder.Services.AddHostedService<BackupWorker>();
+builder.Services.AddHostedService<Modules.Backup.Application.Workers.RestoreTestWorker>();
 
 var app = builder.Build();
 if (localSettingsCreated)

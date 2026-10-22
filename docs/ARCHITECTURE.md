@@ -1,5 +1,24 @@
 # How OctoBackup works
 
+## Restore verification
+
+`RestoreTestWorker` consumes persisted `BackupTest` rows independently of exports.
+Successful backup publication atomically adds an automatic test when the runtime
+administrator option is enabled. Manual requests use the existing authenticated,
+CSRF-protected backup API and require server access at admission and execution.
+`DockerRestoreTestRunner` streams logical ZIP dumps or restores native SQL Server
+files in networkless, resource-bounded containers, saves bounded random-table
+samples in SQLite, then removes its container. No provider ports or interactive SQL
+are exposed. The frontend polls the latest authorized saved report. Additive EF
+columns preserve legacy data/status values and record engine snapshots for new
+artifacts. Deployment opt-in is separate from the administrator automatic toggle.
+See [restore testing](RESTORE_TESTING.md) for isolation, compatibility and limits.
+`RestoreArchiveProfile` reads a bounded SQL header and resolves only deployment-owned
+version mappings. PostgreSQL uses at least the source/dump-client major, MySQL and
+MariaDB use source release/family-specific clients and the archive's database name.
+The runner checks actual versions before importing, streams all SQL unchanged and
+identifies the failing stage without logging provider output or SQL text.
+
 ## Repository map
 
 | Path | Responsibility |
@@ -83,8 +102,9 @@ notification services, and exposed a development-only Docker restore prototype.
 The React migration replaces client page/form/service logic, removes that token
 transport and prototype, and keeps the useful database engine and metadata model.
 
-Original placeholder delete/test actions reported success; unsupported actions now
-return HTTP 501. History paging returns records rather than an empty success.
+Original placeholder delete/test actions reported success; delete remains HTTP 501.
+Restore tests now enqueue durable work and expose authenticated saved reports.
+History paging returns records rather than an empty success.
 Creating/editing connections is now administrator-only; this prevents ordinary
 operators from redirecting the backend to arbitrary network destinations. Allowed
 database/SSH hosts must also be configured by the deployment administrator.
@@ -101,7 +121,7 @@ Backup/test execution rechecks approved destinations, including scheduled work.
 
 Legacy SMTP helper classes exist but were not wired into the original worker's
 runtime DI/execution flow. Email delivery is therefore not claimed as implemented.
-Restore verification and email workflow integration are tracked in ROADMAP.md.
+Email workflow integration and further restore validation are tracked in ROADMAP.md.
 
 ## API contracts
 

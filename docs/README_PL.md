@@ -82,8 +82,16 @@ narzędzia, TLS i uprawnienia do odczytu definicji procedur.
 - `compose.yaml`: API i frontend; `compose.dbs.yaml`: same bazy.
 
 Działają połączenia/SSH, ręczne kopie, harmonogramy, historia, pobieranie,
-zarządzanie kontami i uprawnieniami. Weryfikacja odtwarzania jako funkcja aplikacji,
-integracja poczty, MFA i szyfrowanie plików kopii pozostają w planach. ZIP nie szyfruje
+zarządzanie kontami i uprawnieniami. Testy odtwarzania uruchamiają jednorazowe kontenery
+i zapisują podgląd próbek tabel oraz danych. Ręczny test jest dostępny przez **Test / preview**
+w historii kopii. Administrator może włączyć automatyczne testy po udanej kopii.
+Najpierw skonfiguruj środowisko wykonawcze: [instrukcja](OPERATIONS.md#restore-testing).
+Panel pokazuje, gdy testowanie jest wyłączone we wdrożeniu. Po zmianie prywatnej
+konfiguracji uruchom API ponownie i ponów test; zapisane raporty pozostają dostępne.
+Nagłówki kopii wybierają zgodną, zatwierdzoną wersję obrazu. Obraz musi być wcześniej
+pobrany; kopie PostgreSQL 17 wymagają serwera testowego 17 lub nowszego. Testy
+MySQL/MariaDB odczytują właściwą bazę kopii i zachowują dane binarne.
+Integracja poczty, MFA i szyfrowanie plików kopii pozostają w planach. ZIP nie szyfruje
 danych. SQL Server wymaga wspólnej ścieżki plików dla tworzenia i pobierania kopii.
 
 [Architektura](ARCHITECTURE.md) | [Bezpieczeństwo](SECURITY.md) |

@@ -20,6 +20,8 @@ public sealed class BackupsDbContext : DbContext
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
+        modelBuilder.Entity<BackupTest>().HasIndex(t => t.ActiveBackupId).IsUnique();
+        modelBuilder.Entity<BackupTest>().HasIndex(t => new { t.Status, t.TestedOn });
         var requests = modelBuilder.Entity<BackupRequest>();
         // SQLite permits multiple NULLs in a unique index; terminal requests release
         // their active key. This is the durable duplicate guard, including races.

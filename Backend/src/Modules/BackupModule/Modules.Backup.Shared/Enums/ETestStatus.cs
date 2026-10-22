@@ -4,5 +4,8 @@ public enum ETestStatus
 {
     Running,
     Success,
-    Failure
+    Failure,
+    Queued,
+    Interrupted,
+    Skipped
 }

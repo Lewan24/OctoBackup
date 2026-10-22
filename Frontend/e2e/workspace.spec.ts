@@ -39,6 +39,14 @@ test("sign in, manage a connection and schedule, inspect history, and sign out",
   await hosts.fill(`${existingHosts}\n${approvedHost}`);
   await page.getByLabel("Default retention (days)").fill("9");
   await page.getByLabel("Schedule polling interval (seconds)").fill("60");
+  await expect(
+    page.getByLabel("Automatically restore-test successful backups"),
+  ).toBeDisabled();
+  await expect(
+    page.getByText("Restore testing is disabled in this deployment.", {
+      exact: false,
+    }),
+  ).toBeVisible();
   await page
     .getByRole("button", { name: "Save settings", exact: true })
     .click();
@@ -50,6 +58,9 @@ test("sign in, manage a connection and schedule, inspect history, and sign out",
     new RegExp(approvedHost.replace(/\./g, "\\.")),
   );
   await expect(page.getByLabel("Default retention (days)")).toHaveValue("9");
+  await expect(
+    page.getByLabel("Automatically restore-test successful backups"),
+  ).not.toBeChecked();
   await page.screenshot({
     path: testInfo.outputPath("application-settings.png"),
     fullPage: true,
@@ -186,6 +197,75 @@ test("sign in, manage a connection and schedule, inspect history, and sign out",
   await expect(
     page.getByRole("heading", { name: "No backup records found" }),
   ).toBeVisible();
+  // UI fixture only: real queue/access/preview persistence are covered by API tests.
+  let fixtureReport: object | null = null;
+  await page.route("**/api/backups/RestoreAvailability", (route) =>
+    route.fulfill({ json: { enabled: true } }),
+  );
+  const completedReport = {
+    id: "fixture-test",
+    backupId: "fixture-backup",
+    status: 1,
+    automatic: false,
+    testedOn: new Date().toISOString(),
+    finishedOn: new Date().toISOString(),
+    preview: {
+      tableCount: 2,
+      catalog: [
+        { schema: "public", name: "probe" },
+        { schema: "public", name: "empty_probe" },
+      ],
+      notes: "Browser fixture: bounded restored sample.",
+      tables: [
+        {
+          schema: "public",
+          name: "probe",
+          columns: ["id", "value", "nullable"],
+          rows: [["1", "<script>sample</script>", null]],
+        },
+        { schema: "public", name: "empty_probe", columns: ["id"], rows: [] },
+      ],
+    },
+  };
+  await page.route("**/api/backups/RestoreReport?id=fixture-backup", (route) =>
+    route.fulfill({ json: fixtureReport }),
+  );
+  await page.route("**/api/backups/TestBackup", async (route) => {
+    expect(route.request().headers()["x-csrf-token"]).toBeTruthy();
+    fixtureReport = completedReport;
+    await route.fulfill({
+      status: 202,
+      json: { ...completedReport, status: 3, preview: null, finishedOn: null },
+    });
+  });
+  await page.goto("/backups/fixture-backup/restore-test");
+  await expect(
+    page.getByRole("heading", { name: "No restore test recorded" }),
+  ).toBeVisible();
+  await page.getByRole("button", { name: "Test backup", exact: true }).click();
+  await expect(page.getByText("2 user tables restored")).toBeVisible();
+  await expect(
+    page.getByRole("cell", { name: "<script>sample</script>", exact: true }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("cell", { name: "NULL", exact: true }),
+  ).toBeVisible();
+  await page.screenshot({
+    path: testInfo.outputPath("restore-preview.png"),
+    fullPage: true,
+  });
+  expect(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth <= innerWidth,
+    ),
+  ).toBe(true);
+  await page.getByLabel("Sampled table").selectOption("1");
+  await expect(
+    page.getByText("This table is empty.", { exact: false }),
+  ).toBeVisible();
+  await page.unroute("**/api/backups/RestoreReport?id=fixture-backup");
+  await page.unroute("**/api/backups/TestBackup");
+  await page.unroute("**/api/backups/RestoreAvailability");
   await page.goto("/users");
   await expect(
     page.getByRole("heading", { name: "Users & access", exact: true }),

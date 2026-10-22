@@ -76,7 +76,7 @@ internal sealed class DbBackupService(
                     Name = x.Name,
                     ServerConnectionId = x.ServerConnectionId,
                     IsDisabled = x.IsSoftDeleted,
-                    Test = dbContext.BackupsTests.AsNoTracking().Where(y => y.BackupId == x.Id).Select(y =>
+                    Test = dbContext.BackupsTests.AsNoTracking().Where(y => y.Id == x.TestId).Select(y =>
                         new BackupTestDto
                         {
                             Id = y.Id,
@@ -97,7 +97,7 @@ internal sealed class DbBackupService(
                     FilePath = null,
                     Name = x.Name,
                     ServerConnectionId = x.ServerConnectionId,
-                    Test = dbContext.BackupsTests.AsNoTracking().Where(y => y.BackupId == x.Id).Select(y =>
+                    Test = dbContext.BackupsTests.AsNoTracking().Where(y => y.Id == x.TestId).Select(y =>
                         new BackupTestDto
                         {
                             Id = y.Id,

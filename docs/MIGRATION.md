@@ -1,5 +1,111 @@
 # Migration progress
 
+## Restore version/database compatibility (2026-10-22)
+
+Analyzed the supplied test ID with read-only metadata and bounded archive-header
+inspection. Its recorded engine and actual format were PostgreSQL, with source
+17.11 and pg_dump 17.6. The fixed PostgreSQL 16 sandbox could not accept the dump's
+`transaction_timeout` setting. No source tables, credentials or backup contents
+were printed or modified. Inspection also found that MySQL exports use --databases,
+so CREATE DATABASE/USE restored into the original schema while the old inspector
+looked in restore_probe.
+
+Added a bounded (64 KiB) archive compatibility profile, explicit deployment-owned
+version maps, format/metadata mismatch rejection and actual runtime version checks.
+PostgreSQL selects at least both source and dump-client major; MySQL/MariaDB use
+their source release/family and original database name. SQL is streamed unchanged:
+unsupported statements are not removed. PostgreSQL temporary storage covers both
+pre-18 and 18+ layouts; MariaDB has its required writable socket directory and
+separate client. New MySQL exports use --hex-blob; legacy byte-preserved binary
+exports remain supported. Binary/geometry previews use bounded hex/WKT, and text
+uses utf8mb4. Added explicit failing stages, fixed safe compatibility error hints,
+numeric database error/line diagnostics, early container-exit checks and broken-pipe
+handling that retains the provider's failure. Raw SQL/stderr still never enters logs.
+
+Validation: 79 backend tests passed; 10 frontend tests passed; production frontend
+build and both desktop/mobile Playwright workflows passed. Live real-export matrix
+passed for MySQL 5.7 and 8.4, MariaDB 10.11, PostgreSQL 16, 17 and 18. Fixtures used
+actual mysqldump/mariadb-dump/pg_dump with original database switching, populated and
+empty tables, Unicode, NULL, JSON, binary/geometry, views, routines and a MySQL trigger.
+Sample values and table inventories matched. MySQL/MariaDB covered legacy binary
+literals and new --hex-blob exports. Invalid SQL at the start of an 8 MiB stream
+failed at the restore stage on every engine, including early client exit while the
+archive was still streaming. Source and restore containers were cleaned afterward.
+
+The harness now uses the application's byte-preserving DumpProcess instead of
+decoding binary dumps as text. Initial fixture failures exposed that test-harness
+problem and the MariaDB socket mount; both were corrected before the full passing
+matrix. MySQL 8.0, PostgreSQL 14/15 and MariaDB 11.4 have default mappings but were
+not live-tested in this pass. Native SQL Server, extension/collation variants,
+production-scale databases and full routine/constraint semantics remain separate
+release checks. No developer backup was used as test data. These results do not
+constitute complete source comparison, disaster-recovery certification or a
+penetration test.
+
+## Restore report/configuration regression (2026-10-22)
+
+Reproduced the React Query undefined-data error: `Results.Ok(null)` wrote an empty
+HTTP 200 body when no report existed. The endpoint now sends explicit JSON `null`,
+and the page normalizes legacy empty responses. Added authenticated deployment
+availability, disabled-state explanations and server validation preventing a newly
+enabled automatic toggle when the restore runtime is off. Logged failures now
+include their fixed safe reason, and cleanup failure preserves the original reason.
+Docker error classification never includes raw stderr, SQL, paths or credentials.
+
+Read-only inspection of the supplied test ID found the stored reason: restore
+testing was not configured, before any restore was attempted. Enabled the ignored
+private local development runtime settings without changing credentials; no real
+backup was restored or altered. Changed the default PostgreSQL image to the
+explicit `postgres:16-bookworm` tag used by the disposable target environment.
+
+Validation: 58 backend tests and 10 frontend tests passed; TypeScript/production
+build and both desktop/mobile Playwright workflows passed. Tests cover actual empty-report HTTP serialization, the legacy empty
+response in React Query, disabled deployment controls, fixed diagnostic categories
+and preserving restore errors when cleanup also fails. Live Docker smoke runs for
+MySQL 8.4 and PostgreSQL 16 both restored synthetic populated/empty tables, matched
+the representative row and rejected corrupt SQL. Their containers were removed.
+These supersede the earlier engine-unavailable limitation for those two logical
+runner checks only; native SQL Server and wider provider matrices remain pending.
+npm audit reported zero vulnerabilities and the UI detector returned no findings.
+
+## Restore testing (2026-10-22)
+
+Replaced the 501 restore-test action with durable manual/automatic requests,
+resource-authorized reports and a separate background consumer. Automatic testing
+defaults off and is administrator-controlled; successful backup publication and
+automatic test enqueue commit together. Manual tests remain available when the
+automatic flag is off. The additive local-EF migration preserves old tables and
+numeric statuses, adds active-test uniqueness and records engine snapshots.
+
+Implemented Docker restore adapters for MySQL/PostgreSQL ZIP SQL and SQL Server
+native .bak, with bounded resources, no network/published ports/host mounts,
+streaming decompression limits, error-exit checks, user-table discovery and random
+table sampling. Saved previews show bounded columns/rows, NULL/empty states and
+truncation. Added cleanup/restart recovery, retention protection, a deployment
+opt-in Compose override and a disposable live smoke harness. New PostgreSQL exports
+omit owners/ACLs so production roles need not exist in the sandbox; permissions
+are consequently outside the archive's scope.
+
+Verification: 51 backend tests passed; seven frontend tests passed; production
+TypeScript/Vite build passed; two desktop/mobile Playwright workflows passed.
+Backend checks include authorization/CSRF, deduplication, atomic automatic enqueue,
+disable/skip/manual behavior, access revocation, saved reports, failure cleanup,
+restart recovery, archive rejection, quoting, streaming and container command
+isolation. Browser preview rendering uses explicit fixture routes; API execution
+uses a fixture runner. Reviewed desktop/mobile preview screenshots and the admin
+toggle. Mechanical UI detector returned no findings. npm audit reported zero
+vulnerabilities; the solution NuGet audit reported none. The smoke harness builds,
+and opt-in Compose configuration parses with a disposable socket-group value.
+
+The Docker Linux engine pipe was unavailable even though Desktop reported running.
+New runtime images and real runner restores were **not executed** in this session;
+MySQL/PostgreSQL/native SQL Server live matrix validation remains a release gate.
+Earlier independent provider smoke checks do not validate this new runner. No
+developer backup database or source credentials were used. These are not penetration
+tests or proof of complete data/business validity. Daemon access is privileged and
+currently belongs to the API process; use a dedicated test runtime. Preview/audit
+rows outlive artifact retention. See RESTORE_TESTING.md and OPERATIONS.md.
+
 ## Objective
 
 Upgrade OctoBackup to .NET 10 first, replace Blazor WebAssembly with React,

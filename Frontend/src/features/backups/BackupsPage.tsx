@@ -1,4 +1,6 @@
 import { useState } from "react";
+import { Link } from "react-router-dom";
+import { restoreStatuses } from "./RestoreTestPage";
 import { useQuery } from "@tanstack/react-query";
 import { Download, Search, Archive } from "lucide-react";
 import { api } from "../../shared/api";
@@ -19,6 +21,7 @@ export function BackupsPage() {
     queryKey: ["backups"],
     queryFn: ({ signal }) =>
       api<Backup[]>("backups/GetAllBackups", undefined, signal),
+    refetchInterval: 5000,
   });
   const rows = [...(query.data ?? [])]
     .filter(
@@ -99,10 +102,16 @@ export function BackupsPage() {
                         </td>
                         <td>
                           {b.test ? (
-                            `Recorded result: ${b.test.status}`
+                            (restoreStatuses[b.test.status] ?? "Unknown")
                           ) : (
                             <span className="subtle">Not verified</span>
                           )}
+                          <Link
+                            className="button secondary small"
+                            to={`/backups/${b.id}/restore-test`}
+                          >
+                            Test / preview
+                          </Link>
                         </td>
                         <td>
                           {!b.isDisabled ? (
@@ -155,8 +164,9 @@ export function BackupsPage() {
         </section>
       )}
       <p className="hint">
-        An available file has not necessarily been restore-tested. Automated
-        restore verification is not yet implemented.
+        An available file has not necessarily been restore-tested. Tests restore
+        into disposable containers and capture bounded data samples. Automatic
+        tests can be enabled by an administrator.
       </p>
     </>
   );

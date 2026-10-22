@@ -1,5 +1,68 @@
 # Run OctoBackup
 
+## Restore testing
+
+Restore tests require a working Linux Docker engine and preloaded compatible images.
+For a console API, install Docker CLI on PATH and set `RestoreTests__Enabled=true`
+in the API process environment (or `RestoreTests:Enabled` in private deployment
+configuration). The API service identity must be able to create/exec/remove test
+containers. Preload defaults on that daemon:
+
+```powershell
+docker pull postgres:16-bookworm
+docker pull mysql:8.4
+docker pull mcr.microsoft.com/mssql/server:2022-latest
+```
+
+For container deployment, opt into the CLI-enabled build and daemon socket mount:
+
+```powershell
+docker compose -f compose.yaml -f compose.restore-tests.yaml up --build -d --wait
+```
+
+First set `RESTORE_DOCKER_GID` in the private `.env` to the Linux socket group ID
+(`stat -c %g /var/run/docker.sock` on the daemon host). This override delegates full
+daemon control to the API process; use a dedicated test daemon/VM. The standard
+Compose deployment does not mount the socket or enable this feature. Remote
+dedicated daemons can instead use Docker's normal TLS-secured CLI configuration;
+never expose an unauthenticated Docker TCP endpoint.
+
+Open **Backup history > Test / preview** for manual testing. In **Application
+settings**, enable **Automatically restore-test successful backups** for background
+checks after future successful exports. Both deployment runtime and the admin
+setting must be enabled for automatic execution. Disabling the admin option leaves
+manual testing available and skips queued automatic work. Existing saved settings
+default this new flag to false. The additive EF migration applies on startup.
+
+The restore page and administrator toggle read deployment availability explicitly.
+If testing is disabled, the page explains the required runtime setup and manual
+testing is disabled; an administrator cannot newly enable the automatic option
+until the deployment runtime is enabled. Existing saved reports remain readable.
+Restart a console API after changing private `RestoreTests` configuration, refresh
+the browser and retry a previously failed test. A missing report returns JSON null,
+not an empty body. Failure warnings include fixed safe diagnostic reasons; raw SQL,
+provider output and credentials remain excluded.
+
+Deployment keys under `RestoreTests`: `PostgresImage`, `MySqlImage`, `SqlServerImage`
+select headerless/native fallback images. For recognized SQL dump headers, configure
+`PostgresImages:<major>`, `MySqlImages:<major.minor>` or
+`MariaDbImages:<major.minor>` with approved preloaded images/digests. For example,
+`RestoreTests__PostgresImages__17=postgres:17`; preload it with `docker pull postgres:17`.
+PostgreSQL requires at least the source-server and dump-client major, not a fixed
+16 image. A PostgreSQL 17 dump containing `transaction_timeout` must not be tested
+on 16. MySQL/MariaDB retain the original database name for CREATE DATABASE/USE dumps.
+Profiles do not auto-pull images or remove unsupported SQL. Unknown versions require
+an explicit image mapping; engine/version checks run before import.
+`TimeoutSeconds` defaults to 1800 (30–7200),
+`MemoryMiB` to 4096 (2048–65536), `DataGiB` to 4 (1–64), and `MaxArchiveGiB` to 10
+(1–100). Values are clamped; tmpfs data counts against memory. `Automatic` seeds
+the admin flag only before runtime settings have been saved. No source credentials
+or database-host allowlist is needed for the networkless sandbox.
+
+Reports are bounded samples, not full source comparisons. Persisted previews contain
+backup data and outlive artifact retention. See [restore testing details and live
+smoke commands](RESTORE_TESTING.md) for limits, cleanup, access and version selection.
+
 ## First-time setup
 
 Install .NET SDK 10.0.302+ (a .NET 10 feature band), Node.js 22.12+, and Docker

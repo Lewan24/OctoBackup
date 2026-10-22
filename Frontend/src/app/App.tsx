@@ -32,6 +32,7 @@ import { Dashboard } from "../features/dashboard/Dashboard";
 import { ServersPage } from "../features/servers/ServersPage";
 import { SchedulesPage } from "../features/schedules/SchedulesPage";
 import { BackupsPage } from "../features/backups/BackupsPage";
+import { RestoreTestPage } from "../features/backups/RestoreTestPage";
 import { AccountPage } from "../features/account/AccountPage";
 import { UsersPage } from "../features/admin/UsersPage";
 import { ApplicationSettingsPage } from "../features/admin/ApplicationSettingsPage";
@@ -279,7 +280,11 @@ function Workspace() {
           </button>
           <span className="breadcrumb">
             Workspace <span>/</span>{" "}
-            {navigation.find((n) => n.to === location.pathname)?.label ??
+            {navigation.find(
+              (n) =>
+                n.to === location.pathname ||
+                (n.to !== "/" && location.pathname.startsWith(n.to + "/")),
+            )?.label ??
               (location.pathname === "/users"
                 ? "Users & access"
                 : location.pathname === "/settings"
@@ -312,6 +317,10 @@ function Workspace() {
             <Route path="/servers" element={<ServersPage admin={admin} />} />
             <Route path="/schedules" element={<SchedulesPage />} />
             <Route path="/backups" element={<BackupsPage />} />
+            <Route
+              path="/backups/:id/restore-test"
+              element={<RestoreTestPage />}
+            />
             <Route path="/queue" element={<QueuePage />} />
             <Route path="/account" element={<AccountPage />} />
             {admin && <Route path="/users" element={<UsersPage />} />}
