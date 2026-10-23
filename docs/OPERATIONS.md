@@ -17,7 +17,7 @@ docker pull mcr.microsoft.com/mssql/server:2022-latest
 For container deployment, opt into the CLI-enabled build and daemon socket mount:
 
 ```powershell
-docker compose -f compose.yaml -f compose.restore-tests.yaml up --build -d --wait
+docker compose -f compose.yaml -f deploy/compose.restore-tests.yaml up --build -d --wait
 ```
 
 First set `RESTORE_DOCKER_GID` in the private `.env` to the Linux socket group ID
@@ -467,9 +467,9 @@ of Docker opt-in. SQL Server still requires shared native-backup storage; set
 
 See [DATABASE_CONNECTIONS.md](DATABASE_CONNECTIONS.md) for the complete SQL Server
 setup, host/client executable paths, PostgreSQL GSS/password transport diagnostics
-and external Docker network examples. `compose.private-network.yaml` attaches only
+and external Docker network examples. `deploy/compose.private-network.yaml` attaches only
 the API to an existing stack network; database host ports are unnecessary there.
-`compose.sqlserver-storage.yaml` adds a dedicated native-backup staging volume with
+`deploy/compose.sqlserver-storage.yaml` adds a dedicated native-backup staging volume with
 service-account permissions; the API copies into private storage, encrypts and
 removes staging plaintext. Set `SqlServer:LocalStagingDirectory` and
 `SqlServer:RemoteBackupRoot` to the same physical share's two mount paths. Do not
@@ -482,6 +482,25 @@ repository. Host-run APIs can use DatabaseTools:MySqlDumpPath/PostgresDumpPath.
 See [CONFIGURATION_RELOAD.md](CONFIGURATION_RELOAD.md) for watched files, live versus
 startup-only settings, file/environment/admin precedence, the Docker directory mount
 and exact image-pull commands. Console Local JSON now reloads; malformed/missing JSON
-keeps its last valid settings. Use compose.config-reload.yaml for an editable runtime
+keeps its last valid settings. Use deploy/compose.config-reload.yaml for an editable runtime
 file in Docker. Pull the exact mapped image using the same Docker daemon as the API,
 then retry the restore test. No API restart is needed for a new image on that daemon.
+
+## Repository layout and image publishing
+
+Run Compose commands from the repository root. The default application and
+standalone database files remain there; optional overrides live in `deploy/`.
+Always pass root `compose.yaml` first when merging overrides, so relative mounts,
+`.env` loading and Docker build contexts continue to resolve from the root.
+For example: `docker compose -f compose.yaml -f deploy/compose.config-reload.yaml up -d`.
+
+On Windows, `scripts/build-and-push.cmd` builds and publishes the API/frontend
+images to `lewan24/octobackup-api:latest` and `lewan24/octobackup-web:latest`. It
+selects the repository root context from any working directory and stops after a
+failed command. Running it requires Docker registry access and publishes images.
+
+Do not delete `Backend/data`, private settings, keys or `Backend/artifacts` as
+part of source cleanup. `bin`, `obj`, frontend `dist`, browser reports and Python
+bytecode caches are generated output. EF migrations and historical diagrams are
+retained; diagrams describe the original design, while ARCHITECTURE.md describes
+the current implementation.

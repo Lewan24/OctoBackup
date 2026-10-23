@@ -77,8 +77,13 @@ narzędzia, TLS i uprawnienia do odczytu definicji procedur.
 
 - `Backend/`: API, moduły, testy i Dockerfile. `Backend/artifacts/publish` zawiera
   wygenerowane pliki publikacji, nie kod źródłowy ani dane produkcyjne.
-- `Frontend/`: React, Nginx, testy i osobny Dockerfile.
-- `docs/`: dokumentacja i diagramy; `scripts/`: narzędzia lokalnego uruchomienia.
+- `Frontend/`: React, Nginx, testy i osobny Dockerfile. Warstwa `app` łączy funkcje
+  serwerów i kolejki bez bezpośrednich importów między funkcjami.
+- Prywatne dane i klucze (`Backend/data`) oraz lokalne artefakty
+  (`Backend/artifacts`) pozostają oddzielone od kodu źródłowego.
+- `docs/`: dokumentacja i diagramy; `scripts/`: uruchamianie, testy wdrożenia
+  i publikowanie obrazów (`build-and-push.cmd`, kontekst budowania: katalog główny).
+- `deploy/`: opcjonalne nakładki Compose; łącz je po głównym `compose.yaml`.
 - `compose.yaml`: API i frontend; `compose.dbs.yaml`: same bazy.
 
 Działają połączenia/SSH, ręczne kopie, harmonogramy, historia, pobieranie,
@@ -110,7 +115,7 @@ zachowując wybraną politykę TLS.
 Integracja poczty i MFA pozostają w planach.
 
 Zmiany ustawień wykonawczych w JSON (np. map obrazów testów przywracania) są
-wczytywane bez restartu API. W Dockerze użyj compose.config-reload.yaml i montowanego
+wczytywane bez restartu API. W Dockerze użyj deploy/compose.config-reload.yaml i montowanego
 katalogu konfiguracji. Obraz wskazany w mapie pobierz na tym samym demonie Docker,
 którego używa API, np. `docker image pull mysql:8.4`, a następnie ponów test.
 [Przeładowywanie konfiguracji i pobieranie obrazów](CONFIGURATION_RELOAD.md).

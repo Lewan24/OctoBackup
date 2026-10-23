@@ -23,7 +23,7 @@ For an existing stack network:
 ```sh
 docker network ls
 # Set DATABASE_NETWORK in your private .env, for example finance_default.
-docker compose -f compose.yaml -f compose.private-network.yaml up -d --build
+docker compose -f compose.yaml -f deploy/compose.private-network.yaml up -d --build
 ```
 
 The override attaches only `api` to that existing network. The frontend stays on
@@ -143,7 +143,7 @@ For the repository's disposable SQL Server Compose profile:
 ```sh
 # Supply private .env credentials first; SQL Server Developer is for non-production use.
 docker compose -f compose.yaml -f compose.dbs.yaml \
-  -f compose.sqlserver-storage.yaml --profile sqlserver up -d --build
+  -f deploy/compose.sqlserver-storage.yaml --profile sqlserver up -d --build
 ```
 
 The override initializes a dedicated volume with SQL Server UID 10001/group 0 and

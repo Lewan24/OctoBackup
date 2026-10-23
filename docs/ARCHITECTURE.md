@@ -35,6 +35,11 @@ identifies the failing stage without logging provider output or SQL text.
 | `Frontend/src/features` | Auth, dashboard, servers/tunnels, schedules, history, account, administration |
 | `Frontend/src/shared` | HTTP/CSRF transport, API types and shared form/status components |
 | `Frontend/e2e` | Real API/browser workflow tests on desktop and mobile |
+| `deploy` | Optional Compose overrides, merged after root `compose.yaml` |
+| `scripts` | Development launcher, deployment checks and Windows image publishing |
+
+The app layer composes queue state into the Servers page so features do not import
+one another. Backend backup endpoint filenames match their endpoint classes.
 
 The backend remains a modular monolith. Core contains entities/provider adapters;
 Application coordinates use cases; Infrastructure owns EF contexts; Api maps HTTP
@@ -127,9 +132,9 @@ also use global CSRF protection. A public registration-policy route exposes only
 the two registration flags. Key material and deployment paths are never returned.
 Backup/test execution rechecks approved destinations, including scheduled work.
 
-Legacy SMTP helper classes exist but were not wired into the original worker's
-runtime DI/execution flow. Email delivery is therefore not claimed as implemented.
-Email workflow integration and further restore validation are tracked in ROADMAP.md.
+Unused legacy SMTP/configuration helpers were removed during repository cleanup.
+Email delivery remains unimplemented; email workflows and further restore
+validation are tracked in ROADMAP.md.
 
 ## API contracts
 

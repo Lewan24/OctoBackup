@@ -54,8 +54,8 @@ bind mount so editors which replace files atomically remain visible:
 mkdir -p config
 cp Backend/docker/appsettings.Runtime.example.json config/appsettings.Runtime.json
 # Edit config/appsettings.Runtime.json, preserving private values as needed.
-docker compose -f compose.yaml -f compose.restore-tests.yaml \
-  -f compose.config-reload.yaml up -d --build
+docker compose -f compose.yaml -f deploy/compose.restore-tests.yaml \
+  -f deploy/compose.config-reload.yaml up -d --build
 ```
 
 Set `RESTORE_DOCKER_GID` as described in OPERATIONS.md first. The reload override

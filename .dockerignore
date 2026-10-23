@@ -21,3 +21,5 @@ scripts
 
 **/appsettings.Runtime.json
 config
+
+deploy

@@ -1,5 +1,41 @@
 # Migration progress
 
+## Repository cleanup (2026-10-23)
+
+Removed 15 unreferenced backend source files: unwired SMTP services/models and
+message formatting, obsolete JSON/logging setup, superseded ZIP/retention helpers,
+unused schedule models/exception and the unused controller base. Removed direct
+MailKit, MimeKit, NLog and Newtonsoft.Json references where no application code
+uses them, plus empty project item groups. Transitive packages required by EF or
+test tooling remain. Persisted entities, namespaces and all EF migrations remain
+unchanged.
+
+Grouped the four optional Compose overrides under `deploy/`, retaining root
+`compose.yaml` and standalone `compose.dbs.yaml`. Updated deployment commands in
+both READMEs and operational documentation. Moved the Windows publishing helper
+to `scripts/build-and-push.cmd`, corrected both repository-root Docker build
+contexts and added failure handling. The helper was inspected, not executed; no
+images were pushed. Renamed four backup endpoint files to match their endpoint
+classes without changing their contents. The app now composes queue state into
+the Servers page, removing the direct import between features while preserving
+pending/error disabling and active-request duplicate prevention.
+
+Removed stale browser reports and Python bytecode cache. Private data, backup
+artifacts, keys, local settings, agent/skill configuration and historical diagrams
+were preserved. Operations documentation identifies diagrams as historical
+design material.
+
+Validation: solution build passed; all 101 backend tests and 14 frontend tests
+passed; TypeScript/Vite production build and both desktop/mobile Playwright
+workflows passed using disposable application data. npm audit reported zero
+vulnerabilities; the direct/transitive NuGet audit reported no vulnerable packages
+across 24 projects. Restore/build emitted NU1900 warnings while the sandbox could
+not reach the advisory feed; the separate network-enabled package audit completed
+successfully. Combined Compose configuration, including all four moved overrides
+and the SQL Server profile, validated using disposable environment values.
+Feature import-boundary inspection and Git whitespace checks passed.
+
+
 ## Reloadable runtime appsettings and restore-image instructions (2026-10-23)
 
 Appsettings base/environment/Development Local JSON and an optional private runtime
@@ -105,9 +141,9 @@ Added optional dedicated SQL Server staging: deployment-configured local and rem
 roots point to the same share, with generated flat filenames, symlink checks,
 private local copies, encryption and staging removal. Legacy whole-backup-root
 mapping remains compatible. Errors explain mount and service-account permissions
-through safe queue messages. compose.sqlserver-storage.yaml provisions a separate
+through safe queue messages. deploy/compose.sqlserver-storage.yaml provisions a separate
 volume and limited initialization/service groups without exposing metadata/keys.
-compose.private-network.yaml attaches only the API to an existing stack network;
+deploy/compose.private-network.yaml attaches only the API to an existing stack network;
 no database host ports or source Docker socket are required.
 
 Live checks found and fixed additional restore regressions: MariaDB client branding

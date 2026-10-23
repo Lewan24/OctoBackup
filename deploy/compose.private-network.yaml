@@ -1,5 +1,5 @@
 # Attach ONLY the API to an existing database network. No database host port needed.
-# docker compose -f compose.yaml -f compose.private-network.yaml up -d --build
+# docker compose -f compose.yaml -f deploy/compose.private-network.yaml up -d --build
 services:
   api:
     networks:

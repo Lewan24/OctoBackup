@@ -30,6 +30,7 @@ import { ErrorMessage, Loading } from "../shared/ui";
 import { AuthPage } from "../features/auth/AuthPage";
 import { Dashboard } from "../features/dashboard/Dashboard";
 import { ServersPage } from "../features/servers/ServersPage";
+import { useBackupQueue } from "../features/queue/useBackupQueue";
 import { SchedulesPage } from "../features/schedules/SchedulesPage";
 import { BackupsPage } from "../features/backups/BackupsPage";
 import { RestoreTestPage } from "../features/backups/RestoreTestPage";
@@ -314,7 +315,7 @@ function Workspace() {
           <QueueHero />
           <Routes>
             <Route path="/" element={<Dashboard admin={admin} />} />
-            <Route path="/servers" element={<ServersPage admin={admin} />} />
+            <Route path="/servers" element={<ServersRoute admin={admin} />} />
             <Route path="/schedules" element={<SchedulesPage />} />
             <Route path="/backups" element={<BackupsPage />} />
             <Route
@@ -340,4 +341,15 @@ function Workspace() {
 }
 function ShieldMark() {
   return <Database size={21} aria-hidden="true" />;
+}
+
+function ServersRoute({ admin }: { admin: boolean }) {
+  const queue = useBackupQueue();
+  return (
+    <ServersPage
+      admin={admin}
+      activeServerIds={queue.data?.activeServerIds ?? []}
+      queueUnavailable={queue.isPending || queue.isError}
+    />
+  );
 }

@@ -68,14 +68,18 @@ database ports, combined deployment, trusted proxy settings and recovery.
 Backend/             .NET API, modules, tests, Dockerfile and generated artifacts
 Frontend/            React app, Nginx proxy, tests and Dockerfile
 docs/                Architecture, security, progress, roadmap and diagrams
-scripts/dev.mjs      Private local configuration and console launcher
+scripts/             Console launcher, smoke checks and image publishing
+deploy/              Optional Compose overrides (merge after compose.yaml)
 compose.yaml         API + frontend containers
 compose.dbs.yaml     PostgreSQL/MySQL targets; optional SQL Server
 OctoBackup.sln       Backend solution
 ```
 
-`Backend/artifacts/publish` contains generated release binaries. It is ignored,
-regenerable build output, not source or live backup data.
+Generated builds/reports are ignored. Local data and keys live under `Backend/data`;
+smoke-test artifacts and tools can live under `Backend/artifacts`. Keep these private
+files separate from source cleanup. Optional deployment examples are documented in
+[operations](docs/OPERATIONS.md). The Windows image publishing helper is
+`scripts/build-and-push.cmd`; both Dockerfiles use the repository root as context.
 
 ## Features and limits
 
@@ -136,7 +140,7 @@ npm run test:e2e --prefix Frontend
 Run backend builds before browser tests. Test results and remaining release checks
 are in [migration progress](docs/MIGRATION.md).
 
-[Architecture](docs/ARCHITECTURE.md) ? [Roadmap](docs/ROADMAP.md) |
-[Product](docs/PRODUCT.md) ? [Design](docs/DESIGN.md) ? [Agent guidance](AGENTS.md)
+[Architecture](docs/ARCHITECTURE.md) | [Roadmap](docs/ROADMAP.md) |
+[Product](docs/PRODUCT.md) | [Design](docs/DESIGN.md) | [Agent guidance](AGENTS.md)
 
 MIT licensed; see [LICENSE](LICENSE).

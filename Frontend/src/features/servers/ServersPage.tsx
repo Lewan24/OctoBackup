@@ -16,10 +16,16 @@ import {
   SubmitForm,
 } from "../../shared/ui";
 import { ServerForm } from "./ServerForm";
-import { useBackupQueue } from "../queue/useBackupQueue";
-export function ServersPage({ admin }: { admin: boolean }) {
+export function ServersPage({
+  admin,
+  activeServerIds,
+  queueUnavailable,
+}: {
+  admin: boolean;
+  activeServerIds: string[];
+  queueUnavailable: boolean;
+}) {
   const client = useQueryClient();
-  const queue = useBackupQueue();
   const [params] = useSearchParams();
   const [editing, setEditing] = useState<Server | "new" | null>(
     params.has("new") && admin ? "new" : null,
@@ -193,9 +199,8 @@ export function ServersPage({ admin }: { admin: boolean }) {
                   disabled={
                     pending !== null ||
                     s.isDisabled ||
-                    queue.isPending ||
-                    queue.isError ||
-                    queue.data?.activeServerIds.includes(s.id)
+                    queueUnavailable ||
+                    activeServerIds.includes(s.id)
                   }
                   onClick={() =>
                     void action(
@@ -208,7 +213,7 @@ export function ServersPage({ admin }: { admin: boolean }) {
                   <Play size={15} />
                   {pending === s.id
                     ? "Requesting…"
-                    : queue.data?.activeServerIds.includes(s.id)
+                    : activeServerIds.includes(s.id)
                       ? "In queue"
                       : "Queue backup"}
                 </button>

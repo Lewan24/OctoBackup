@@ -34,7 +34,7 @@ recorded in MIGRATION.md; distinguish code support from live-provider verificati
 2. Offline credential rekey utility and migration of all legacy CBC ciphertext.
    Add checksum/provenance, historical backup re-encryption/revocation and external key wrapping. Optional global/individual backup encryption and versioned key changes are implemented; see BACKUP_ENCRYPTION.md.
 3. Verified email change, password recovery, MFA and account invitation lifecycle.
-   Integrate the retained SMTP helpers into explicit runtime workflows and tests.
+   Implement email delivery with explicit runtime workflows and tests.
 4. Server-side backup-history filtering/paging,
    per-existing-server retention editing and timezone-aware scheduling with DST tests.
 5. Distributed worker coordination if multiple replicas are required, orphan-file
