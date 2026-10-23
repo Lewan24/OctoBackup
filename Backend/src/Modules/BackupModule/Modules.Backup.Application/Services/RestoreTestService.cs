@@ -25,7 +25,7 @@ public sealed class RestoreTestCoordinator
 
 public sealed class RestoreTestService(BackupsDbContext db, IRestoreTestRunner runner, IConfiguration configuration,
     IApplicationSettings settings, RestoreTestCoordinator coordinator, UserManager<AppUser> users,
-    BackupQueueService notifications, ILogger<RestoreTestService> logger)
+    BackupQueueService notifications, BackupEncryptionService encryption, ILogger<RestoreTestService> logger)
 {
     public static BackupTest Create(PerformedBackup backup, DbServerConnection server, string? userId, bool automatic)
     {
@@ -44,7 +44,7 @@ public sealed class RestoreTestService(BackupsDbContext db, IRestoreTestRunner r
             var backup = await db.Backups.FirstOrDefaultAsync(b => b.Id == id, token)
                 ?? throw new BackupQueueException(404, "Backup not found.");
             await Authorize(backup, user, token);
-            if (!configuration.GetValue("RestoreTests:Enabled", false))
+            if (!Available(backup.DatabaseType ?? (await db.DbConnections.AsNoTracking().FirstOrDefaultAsync(s => s.Id == backup.ServerConnectionId, token))?.DbType))
                 throw new BackupQueueException(503, "Restore testing is not configured on this deployment.");
             ValidateArtifact(backup);
             if (await db.BackupsTests.AnyAsync(t => t.ActiveBackupId == id, token))
@@ -118,6 +118,7 @@ public sealed class RestoreTestService(BackupsDbContext db, IRestoreTestRunner r
             var test = await db.BackupsTests.Where(t => t.Status == ETestStatus.Queued).OrderBy(t => t.TestedOn).FirstOrDefaultAsync(token);
             if (test is null) return false;
             var backup = await db.Backups.FirstOrDefaultAsync(b => b.Id == test.BackupId, token);
+            var startedRunner = false;
             try
             {
                 if (test.Automatic && !settings.Current.AutomaticRestoreTests)
@@ -127,7 +128,7 @@ public sealed class RestoreTestService(BackupsDbContext db, IRestoreTestRunner r
                 }
                 else
                 {
-                    if (!configuration.GetValue("RestoreTests:Enabled", false))
+                    if (!Available(test.DatabaseType))
                         throw new BackupQueueException(503, "Restore testing is not configured on this deployment.");
                     if (backup is null) throw new BackupQueueException(404, "Backup no longer exists.");
                     ValidateArtifact(backup);
@@ -147,7 +148,11 @@ public sealed class RestoreTestService(BackupsDbContext db, IRestoreTestRunner r
                     if (backup.ServerConnectionId is Guid sid) await notifications.Changed(sid);
                     using var timeout = CancellationTokenSource.CreateLinkedTokenSource(token);
                     timeout.CancelAfter(TimeSpan.FromSeconds(Math.Clamp(configuration.GetValue("RestoreTests:TimeoutSeconds", 1800), 30, 7200)));
-                    var preview = await runner.Run(test, backup.FilePath, timeout.Token);
+                    await using var decrypted = await encryption.OpenDecrypted(backup, null, false, timeout.Token);
+                    startedRunner = test.DatabaseType != DatabaseType.Sqlite;
+                    var preview = test.DatabaseType == DatabaseType.Sqlite
+                        ? await SqliteBackup.Verify(decrypted.Name, timeout.Token)
+                        : await runner.Run(test, decrypted.Name, timeout.Token);
                     test.PreviewJson = JsonSerializer.Serialize(preview);
                     test.Status = ETestStatus.Success;
                 }
@@ -162,7 +167,7 @@ public sealed class RestoreTestService(BackupsDbContext db, IRestoreTestRunner r
             }
             finally
             {
-                try { using var cleanup = new CancellationTokenSource(TimeSpan.FromSeconds(30)); await runner.Cleanup(test.Id, cleanup.Token); }
+                try { if (startedRunner) { using var cleanup = new CancellationTokenSource(TimeSpan.FromSeconds(30)); await runner.Cleanup(test.Id, cleanup.Token); } }
                 catch
                 {
                     test.Status = ETestStatus.Failure;
@@ -179,6 +184,10 @@ public sealed class RestoreTestService(BackupsDbContext db, IRestoreTestRunner r
         }
         finally { coordinator.Execution.Release(); }
     }
+
+    private bool Available(DatabaseType? type) => type == DatabaseType.Sqlite
+        ? configuration.GetValue("Sqlite:RestoreTestsEnabled", true)
+        : configuration.GetValue("RestoreTests:Enabled", false);
 
     private static RestoreReportDto Report(BackupTest t) => new(t.Id, t.BackupId, t.Status, t.Automatic, t.TestedOn,
         t.FinishedOn, t.ErrorMessage, t.PreviewJson is null ? null : JsonSerializer.Deserialize<RestorePreview>(t.PreviewJson));

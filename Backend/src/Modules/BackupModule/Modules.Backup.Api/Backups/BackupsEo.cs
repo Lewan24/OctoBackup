@@ -15,6 +15,7 @@ internal static class BackupsEndpoints
 {
     public static WebApplication MapBackupEndpoints(this WebApplication app)
     {
+        app.MapBackupEncryption();
         var api = app.MapGroup("/api/backups")
             .RequireAuthorization()
             .AddEndpointFilter<RequestValidationFilter>()
@@ -43,7 +44,12 @@ internal static class BackupsEndpoints
         api.MapPost("TestBackup", BackupsOperations.TestBackup)
             .WithSummary("Test backup file in prepared test container");
         api.MapGet("RestoreReport", BackupsOperations.RestoreReport);
-        api.MapGet("RestoreAvailability", (IConfiguration config) => Results.Ok(new { enabled = config.GetValue("RestoreTests:Enabled", false) }));
+        api.MapGet("RestoreAvailability", async (IConfiguration config, Modules.Backup.Infrastructure.DbContexts.BackupsDbContext db, Guid? id) => {
+            var type = id is null ? null : await Microsoft.EntityFrameworkCore.EntityFrameworkQueryableExtensions.FirstOrDefaultAsync(
+                db.Backups.Where(b => b.Id == id).Select(b => b.DatabaseType));
+            return Results.Ok(new { enabled = type == Modules.Backup.Shared.Enums.DatabaseType.Sqlite
+                ? config.GetValue("Sqlite:RestoreTestsEnabled", true) : config.GetValue("RestoreTests:Enabled", false) });
+        });
 
         return app;
     }

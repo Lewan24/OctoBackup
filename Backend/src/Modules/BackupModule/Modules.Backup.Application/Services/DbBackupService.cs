@@ -73,6 +73,7 @@ internal sealed class DbBackupService(
                     Id = x.Id,
                     CreatedOn = x.CreatedOn,
                     FilePath = null,
+                    IsEncrypted = x.EncryptionKeyId != null,
                     Name = x.Name,
                     ServerConnectionId = x.ServerConnectionId,
                     IsDisabled = x.IsSoftDeleted,
@@ -95,6 +96,7 @@ internal sealed class DbBackupService(
                     Id = x.Id,
                     CreatedOn = x.CreatedOn,
                     FilePath = null,
+                    IsEncrypted = x.EncryptionKeyId != null,
                     Name = x.Name,
                     ServerConnectionId = x.ServerConnectionId,
                     Test = dbContext.BackupsTests.AsNoTracking().Where(y => y.Id == x.TestId).Select(y =>
@@ -140,7 +142,9 @@ internal sealed class DbBackupService(
 
         var server = dbContext.DbConnections.AsNoTracking().FirstOrDefault(x => x.Id == backup.ServerConnectionId);
 
-        var extension = Path.GetExtension(backup.FilePath).Equals(".bak", StringComparison.OrdinalIgnoreCase) ? ".bak" : ".zip";
+        var extension = backup.EncryptionKeyId is not null
+            ? Path.GetExtension(Path.GetFileNameWithoutExtension(backup.FilePath)) + ".enc"
+            : Path.GetExtension(backup.FilePath);
         var fileName = server is not null
             ? $"{server.DbName}_{backup.CreatedOn:yyyy-MM-dd_HH-mm}{extension}"
             : $"DbBackup_{backup.CreatedOn:yyyy-MM-dd_HH-mm}{extension}";

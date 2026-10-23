@@ -1,6 +1,7 @@
 using Microsoft.Extensions.Configuration;
 using System.Security.Cryptography;
 using System.Text;
+using Microsoft.AspNetCore.DataProtection;
 using Modules.Crypto.Shared.Interfaces;
 
 namespace Modules.Crypto.Application.Services;
@@ -8,9 +9,11 @@ namespace Modules.Crypto.Application.Services;
 internal sealed class CryptoService : ICryptoService
 {
     private readonly byte[] _key;
+    private readonly IDataProtector _protector;
 
-    public CryptoService(IConfiguration configuration)
+    public CryptoService(IConfiguration configuration, IDataProtectionProvider protection)
     {
+        _protector = protection.CreateProtector("OctoBackup.ConnectionSecrets.v1");
         var keySource = configuration["CRYPTO_KEY"] ??
                         throw new InvalidOperationException("CRYPTO_KEY is missing. Configure it with environment variables or dotnet user-secrets before starting the API.");
         _key = ParseKey(keySource);
@@ -24,19 +27,16 @@ internal sealed class CryptoService : ICryptoService
         if (string.IsNullOrWhiteSpace(plain))
             return null;
 
-        var nonce = RandomNumberGenerator.GetBytes(12);
-        var bytes = Encoding.UTF8.GetBytes(plain);
-        var cipher = new byte[bytes.Length];
-        var tag = new byte[16];
-        using var aes = new AesGcm(_key, 16);
-        aes.Encrypt(nonce, bytes, cipher, tag);
-        return "gcm1:" + Convert.ToBase64String(nonce.Concat(tag).Concat(cipher).ToArray());
+        return "dp1:" + _protector.Protect(plain);
     }
 
     public string? Decrypt(string? cipherTextBase64)
     {
         if (string.IsNullOrWhiteSpace(cipherTextBase64))
             return null;
+
+        if (cipherTextBase64.StartsWith("dp1:", StringComparison.Ordinal))
+            return _protector.Unprotect(cipherTextBase64[4..]);
 
         if (cipherTextBase64.StartsWith("gcm1:", StringComparison.Ordinal))
         {

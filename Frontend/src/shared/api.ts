@@ -14,6 +14,7 @@ export async function api<T = void>(
   path: string,
   body?: unknown,
   signal?: AbortSignal,
+  responseType: "json" | "response" = "json",
 ): Promise<T> {
   const headers: Record<string, string> = {};
   if (body !== undefined) {
@@ -55,9 +56,30 @@ export async function api<T = void>(
                 : "The request failed. Please try again.";
     throw new ApiError(response.status, message);
   }
+  if (responseType === "response") return response as T;
   return (
     response.status === 204 || response.headers.get("content-length") === "0"
       ? undefined
       : await response.text().then((t) => (t ? JSON.parse(t) : undefined))
   ) as T;
+}
+
+export async function downloadDecryptedBackup(id: string, password: string) {
+  const response = await api<Response>(
+    `backups/DownloadDecrypted?id=${encodeURIComponent(id)}`,
+    { password },
+    undefined,
+    "response",
+  );
+  const blob = await response.blob();
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  const disposition = response.headers.get("content-disposition") ?? "";
+  link.download =
+    disposition.match(/filename="?([^";]+)"?/)?.[1] ?? `backup-${id}`;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 60_000);
 }

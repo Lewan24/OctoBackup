@@ -81,7 +81,7 @@ regenerable build output, not source or live backup data.
 
 Working workflows include connections/SSH, manual backups, schedules, authorized
 history/downloads, user/access management and account settings. SQLite stores app
-metadata; PostgreSQL/MySQL/SQL Server are backup targets. New credentials use AES-GCM;
+metadata; MySQL/MariaDB, PostgreSQL, SQL Server and mounted SQLite files are backup targets. New credentials use .NET Data Protection;
 cookie sessions use CSRF, rate limits and server-side access checks.
 
 Administrators can open **Application settings** to approve database/SSH hosts,
@@ -96,15 +96,32 @@ Restore tests run in disposable containers, with optional automatic testing afte
 each successful backup and manual **Test / preview** from Backup history. The saved
 report shows sampled tables and rows. Enable the deployment runtime first, then
 the administrator toggle; see [restore-test setup](docs/OPERATIONS.md#restore-testing).
-The UI explains disabled deployments. After changing private runtime settings,
-restart the API and retry the test; existing reports remain accessible.
+The UI explains disabled deployments. Private runtime JSON settings reload for new
+tests; preload the selected image and retry. Existing reports remain accessible.
 Dump headers select compatible, deployment-approved engine versions. Preload the
 required image; PostgreSQL 17 dumps need a 17+ test server. MySQL/MariaDB restores
 inspect the archive's original database and preserve binary values.
-Email integration, MFA/recovery and backup-file encryption remain planned.
-ZIP compression is not encryption. SQL Server downloads require a
-shared backup filesystem at the same absolute path. Use one app replica per data
+Backup encryption is disabled by default. Administrators can enable global encryption
+in Application settings by entering and confirming a custom password. Individual
+server passwords work independently, including when global encryption is off, and
+can be configured while creating/editing a server or from Servers > Backup encryption.
+History offers encrypted downloads and password-confirmed decrypted downloads where
+applicable. Existing encrypted backups retain their original keys when settings change.
+See [encryption and engine compatibility](docs/BACKUP_ENCRYPTION.md), including the
+offline decryption tool and SQLite mount configuration.
+Email integration and MFA/recovery remain planned. SQL Server downloads require a
+dedicated shared staging filesystem; configured local/remote roots can use different mount paths. Use one app replica per data
 store. See [security](docs/SECURITY.md) for the controls and their limits.
+
+See [connection troubleshooting and SQL Server setup](docs/DATABASE_CONNECTIONS.md)
+for console dump clients, PostgreSQL password transport, private Docker networks
+without published database ports, and the SQL Server staging Compose override.
+
+Appsettings JSON runtime values reload automatically, including restore-image maps.
+For Docker, use the watched directory override; see [configuration reload and image
+preloading](docs/CONFIGURATION_RELOAD.md). Pull the exact configured image on the
+restore daemon before retrying: `docker image pull mysql:8.4` is an example.
+Environment changes, storage/key roots and HTTP/proxy setup remain startup settings.
 
 ## Verification
 

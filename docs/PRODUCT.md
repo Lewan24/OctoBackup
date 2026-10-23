@@ -9,7 +9,7 @@ web
 ## Product Purpose
 
 Manage database connections, scheduled backups, backup history and user access from
-one self-hosted application. Preserve MySQL, PostgreSQL and SQL Server workflows.
+one self-hosted application. Support MySQL/MariaDB, PostgreSQL, SQL Server native shared-staging backups and mounted SQLite snapshots. Offer optional administrator-enabled global encryption and independent individual server passwords; preserve historical backup keys.
 
 ## Users
 

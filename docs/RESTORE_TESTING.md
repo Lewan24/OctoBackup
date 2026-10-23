@@ -25,7 +25,7 @@ supersedes the unused legacy per-server automatic-test configuration.
   separate images and clients for the source release. Check the running server
   version before importing. Header text never supplies image names or commands.
 - MySQL/PostgreSQL: stream the ZIP's single SQL entry to the engine client. Archive
-  paths are never extracted onto the host. SQL Server: copy the native `.bak`, run
+  paths are never extracted onto the host. SQL Server: stream the native `.bak` into private tmpfs as the non-root SQL user, run
   VERIFYONLY and FILELISTONLY, then restore with all logical files moved into
   generated container paths. Ordinary D/L file layouts are supported.
 - Require successful restore exit; PostgreSQL uses ON_ERROR_STOP, sqlcmd uses `-b`,
@@ -69,7 +69,10 @@ Containers have no network, published ports or host mounts, a read-only root,
 no-new-privileges, default seccomp, 256 PIDs, two CPUs and bounded memory/swap.
 Database data lives on size-bounded tmpfs, alongside bounded `/tmp` and `/run`.
 MySQL/PostgreSQL initialization receives only CHOWN, SETUID, SETGID, DAC_OVERRIDE
-and FOWNER capabilities; SQL Server receives none. Container logs are disabled.
+and FOWNER capabilities; SQL Server receives only NET_BIND_SERVICE because the
+official sqlservr binary declares that file capability and otherwise fails exec.
+All capabilities are dropped before these explicit additions; network isolation
+and no-new-privileges remain enabled. Container logs are disabled.
 Disposable passwords are random and passed through process environments, not CLI
 arguments. tmpfs data counts against container memory; size resources for the dump.
 
@@ -145,3 +148,33 @@ MySQL/MariaDB cover both legacy binary literals and new `--hex-blob` exports.
 Views/routines are exported/restored without suppressing errors; this is not a
 full semantic comparison of routine results or schema constraints. Every source
 and target container is removed with independent cleanup deadlines.
+
+## Encrypted backups and SQLite snapshots
+
+New artifacts are decrypted internally with their saved key version before running
+the existing restore adapters. Complete authentication precedes the test; private
+work files are removed on disposal and recognized leftovers on startup. Password
+rotation does not break old tests. Legacy plaintext archives remain readable.
+SQLite uses a read-only integrity check and bounded table preview of the snapshot,
+without Docker when its runtime is disabled; `Sqlite:RestoreTestsEnabled` can turn
+this off. It is an in-process validation, not a container restore. See
+[backup encryption and provider limits](BACKUP_ENCRYPTION.md).
+
+Encrypted-format smoke check with a locally preloaded compatible image:
+
+```sh
+OCTOBACKUP_SMOKE_POSTGRES_IMAGE=postgres:17-alpine dotnet run --project Backend/tests/RestoreSmoke -- postgres --encrypted
+```
+
+Native SQL Server readiness uses explicit `tcp:127.0.0.1,1433` to avoid DNS in the
+networkless runtime. The ODBC sqlcmd uses `-y 0` without incompatible `-h`/`-W`
+options. Native files are streamed with a size bound into writable tmpfs, avoiding
+Docker daemon refusal to `cp` into read-only containers. The fixed transfer command
+contains no archive-supplied path or shell text and creates mode-0600 files as the
+ordinary SQL user; no root exec or host mount is required.
+
+Restore image maps, limits and enablement reload from watched appsettings JSON.
+Each scoped runner retains its settings for an active test, and cleanup does not
+skip a created container when enablement changes. Pull the exact mapped image/tag
+on the runtime's daemon before retrying; adding a mapping does not download it.
+See [configuration reload and image preloading](CONFIGURATION_RELOAD.md).

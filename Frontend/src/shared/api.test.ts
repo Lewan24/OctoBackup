@@ -1,6 +1,14 @@
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { api, ApiError, resetCsrf } from "./api";
-beforeEach(() => resetCsrf());
+beforeEach(() => {
+  resetCsrf();
+  vi.stubGlobal("localStorage", {
+    setItem: vi.fn(),
+    getItem: vi.fn(),
+    removeItem: vi.fn(),
+    clear: vi.fn(),
+  });
+});
 afterEach(() => vi.unstubAllGlobals());
 it("fetches a CSRF token and sends it with mutations without storing credentials", async () => {
   const fetch = vi
@@ -20,7 +28,7 @@ it("fetches a CSRF token and sends it with mutations without storing credentials
     credentials: "same-origin",
     headers: { "X-CSRF-TOKEN": "csrf-token" },
   });
-  expect(localStorage.length).toBe(0);
+  expect(localStorage.setItem).not.toHaveBeenCalled();
 });
 it("surfaces permission errors without treating the request as success", async () => {
   vi.stubGlobal(
@@ -38,4 +46,31 @@ it("does not submit a mutation if CSRF initialization fails", async () => {
     "Could not initialize",
   );
   expect(fetch).toHaveBeenCalledTimes(1);
+});
+
+it("returns a binary response through the same CSRF-protected transport", async () => {
+  const fetch = vi
+    .fn()
+    .mockResolvedValueOnce(
+      new Response(JSON.stringify({ token: "csrf-token" })),
+    )
+    .mockResolvedValueOnce(
+      new Response("encrypted archive", {
+        headers: { "Content-Type": "application/octet-stream" },
+      }),
+    );
+  vi.stubGlobal("fetch", fetch);
+  const response = await api<Response>(
+    "backups/DownloadDecrypted?id=fixture",
+    { password: "private-password" },
+    undefined,
+    "response",
+  );
+  expect(await response.text()).toBe("encrypted archive");
+  expect(fetch.mock.calls[1][1]).toMatchObject({
+    method: "POST",
+    headers: { "X-CSRF-TOKEN": "csrf-token" },
+    body: JSON.stringify({ password: "private-password" }),
+  });
+  expect(localStorage.setItem).not.toHaveBeenCalled();
 });

@@ -6,6 +6,7 @@ services:
       dockerfile: Backend/Dockerfile
     restart: unless-stopped
     environment:
+      DataProtection__KeysDirectory: /data/keys
       CRYPTO_KEY: ${CRYPTO_KEY:?Run node scripts/dev.mjs init first}
       Bootstrap__AdminEmail: ${ADMIN_EMAIL:?Set ADMIN_EMAIL in .env}
       Bootstrap__AdminPassword: ${ADMIN_PASSWORD:?Set ADMIN_PASSWORD in .env}

@@ -1,4 +1,9 @@
 import { useState } from "react";
+import {
+  ServerEncryptionFields,
+  useServerEncryption,
+} from "./ServerEncryptionFields";
+import type { EncryptionStatus } from "../../shared/BackupEncryptionEditor";
 import { api } from "../../shared/api";
 import type { Server } from "../../shared/types";
 import { engines } from "../../shared/types";
@@ -12,41 +17,61 @@ export function ServerForm({
   onSaved: () => Promise<unknown>;
   onCancel: () => void;
 }) {
+  const encryption = useServerEncryption(server?.id);
+  const [encryptionMode, setEncryptionMode] = useState(
+    server ? "keep" : "inherit",
+  );
+  const status = server
+    ? (encryption.data as EncryptionStatus | undefined)
+    : undefined;
   const [tunnel, setTunnel] = useState(server?.isTunnelRequired ?? false);
   const [engine, setEngine] = useState(server?.dbType ?? 0);
   return (
     <SubmitForm
       label={server ? "Save connection" : "Connect server"}
       onCancel={onCancel}
+      submitDisabled={!encryption.data || encryption.isError}
       onSubmit={async (d) => {
         const text = (key: string) => String(d.get(key) ?? "");
         const payload = {
+          encryption:
+            encryptionMode === "keep"
+              ? null
+              : {
+                  mode: encryptionMode,
+                  password: text("encryptionPassword") || null,
+                  confirmPassword: text("encryptionConfirmation") || null,
+                  currentPassword: text("currentEncryptionPassword") || null,
+                  expectedKeyId:
+                    status && !status.usesGlobalKey ? status.keyId : null,
+                },
           id: server?.id ?? crypto.randomUUID(),
           connectionName: text("name"),
-          serverHost: text("host"),
-          serverPort: Number(d.get("port")),
+          serverHost: engine === 3 ? "localhost" : text("host"),
+          serverPort: engine === 3 ? 1 : Number(d.get("port")),
           dbName: text("database"),
           dbType: engine,
-          dbUser: text("user"),
+          dbUser: engine === 3 ? "sqlite" : text("user"),
           dbPasswd: text("password") || null,
           ssL: d.has("tls"),
-          isTunnelRequired: tunnel,
-          tunnel: tunnel
-            ? {
-                id: server?.tunnel?.id ?? crypto.randomUUID(),
-                serverHost: text("sshHost"),
-                sshPort: Number(d.get("sshPort")),
-                username: text("sshUser"),
-                password: text("sshPassword") || null,
-                privateKeyContent: text("sshKey") || null,
-                privateKeyPassphrase: text("sshPassphrase") || null,
-                overridePasswordsAndPem: d.has("override"),
-                localPort: Number(d.get("localPort")),
-                remoteHost: text("remoteHost"),
-                remotePort: Number(d.get("remotePort")),
-                description: text("description"),
-              }
-            : null,
+          isTunnelRequired: engine !== 3 && tunnel,
+          tunnel:
+            engine !== 3 && tunnel
+              ? {
+                  id: server?.tunnel?.id ?? crypto.randomUUID(),
+                  serverHost: text("sshHost"),
+                  sshPort: Number(d.get("sshPort")),
+                  username: text("sshUser"),
+                  password: text("sshPassword") || null,
+                  privateKeyContent: text("sshKey") || null,
+                  privateKeyPassphrase: text("sshPassphrase") || null,
+                  overridePasswordsAndPem: d.has("override"),
+                  localPort: Number(d.get("localPort")),
+                  remoteHost: text("remoteHost"),
+                  remotePort: Number(d.get("remotePort")),
+                  description: text("description"),
+                }
+              : null,
         };
         await api(`servers/${server ? "EditServer" : "CreateServer"}`, payload);
         await onSaved();
@@ -65,7 +90,10 @@ export function ServerForm({
         <Field label="Database engine">
           <select
             value={engine}
-            onChange={(e) => setEngine(Number(e.target.value))}
+            onChange={(e) => {
+              setEngine(Number(e.target.value));
+              if (Number(e.target.value) === 3) setTunnel(false);
+            }}
           >
             {engines.map((e, i) => (
               <option value={i} key={e}>
@@ -74,27 +102,33 @@ export function ServerForm({
             ))}
           </select>
         </Field>
-        <Field label="Database host">
-          <input
-            name="host"
-            defaultValue={server?.serverHost}
-            placeholder="db.internal"
-            maxLength={253}
-            required
-          />
-        </Field>
-        <Field label="Port">
-          <input
-            name="port"
-            type="number"
-            min={1}
-            max={65535}
-            key={engine}
-            defaultValue={server?.serverPort ?? [3306, 5432, 1433][engine]}
-            required
-          />
-        </Field>
-        <Field label="Database name">
+        {engine !== 3 && (
+          <>
+            <Field label="Database host">
+              <input
+                name="host"
+                defaultValue={server?.serverHost}
+                placeholder="db.internal"
+                maxLength={253}
+                required
+              />
+            </Field>
+            <Field label="Port">
+              <input
+                name="port"
+                type="number"
+                min={1}
+                max={65535}
+                key={engine}
+                defaultValue={server?.serverPort ?? [3306, 5432, 1433][engine]}
+                required
+              />
+            </Field>
+          </>
+        )}
+        <Field
+          label={engine === 3 ? "SQLite source filename" : "Database name"}
+        >
           <input
             name="database"
             defaultValue={server?.dbName}
@@ -103,51 +137,75 @@ export function ServerForm({
             maxLength={128}
           />
         </Field>
-        <Field label="Database user">
-          <input
-            name="user"
-            defaultValue={server?.dbUser}
-            required
-            maxLength={128}
-            autoComplete="off"
-          />
-        </Field>
-        <Field
-          label={
-            server ? "New database password (optional)" : "Database password"
-          }
-        >
-          <input
-            name="password"
-            type="password"
-            autoComplete="new-password"
-            required={!server}
-            maxLength={512}
-          />
-        </Field>
-        <div className="form-checks">
-          <label className="check">
-            <input
-              name="tls"
-              type="checkbox"
-              defaultChecked={server?.ssL ?? true}
-            />
-            Require verified TLS
-          </label>
-          <label className="check">
-            <input
-              type="checkbox"
-              checked={tunnel}
-              onChange={(e) => setTunnel(e.target.checked)}
-            />
-            Connect through SSH
-          </label>
-        </div>
+        {engine !== 3 && (
+          <>
+            <Field label="Database user">
+              <input
+                name="user"
+                defaultValue={server?.dbUser}
+                required
+                maxLength={128}
+                autoComplete="off"
+              />
+            </Field>
+            <Field
+              label={
+                server
+                  ? "New database password (optional)"
+                  : "Database password"
+              }
+            >
+              <input
+                name="password"
+                type="password"
+                autoComplete="new-password"
+                required={!server}
+                maxLength={512}
+              />
+            </Field>
+            <div className="form-checks">
+              <label className="check">
+                <input
+                  name="tls"
+                  type="checkbox"
+                  defaultChecked={server?.ssL ?? true}
+                />
+                Require verified TLS
+              </label>
+              <label className="check">
+                <input
+                  type="checkbox"
+                  checked={tunnel}
+                  onChange={(e) => setTunnel(e.target.checked)}
+                />
+                Connect through SSH
+              </label>
+            </div>
+          </>
+        )}
       </div>
+      <ServerEncryptionFields
+        editing={!!server}
+        globalEnabled={encryption.data?.globalEnabled}
+        individual={!!status && !status.usesGlobalKey}
+        ready={!!encryption.data}
+        error={encryption.error}
+        mode={encryptionMode}
+        onMode={setEncryptionMode}
+      />
+      {engine === 3 && (
+        <p className="notice">
+          Use a filename such as app.sqlite inside the deployment-approved
+          SQLite source mount. The API uses a live snapshot including WAL data.
+          SSH and arbitrary paths are unavailable.
+        </p>
+      )}
       {engine === 2 && (
         <p className="notice">
-          SQL Server writes .bak files on the database host. The backup path
-          must be mounted at the same location in both environments.
+          SQL Server writes .bak files on its own host. Configure a shared
+          staging directory in the deployment for SQL Server and the API; a TCP
+          connection alone cannot download the backup. Different mount paths are
+          supported.
         </p>
       )}
       <p className="hint">

@@ -126,13 +126,46 @@ public sealed class RestoreContainerTests
             var runner = new DockerRestoreTestRunner(new ConfigurationBuilder().Build(), commands);
             var preview = await runner.Run(new BackupTest { Id = Guid.NewGuid(), DatabaseType = DatabaseType.SqlServer }, path, CancellationToken.None);
             Assert.Equal("verified-row", Assert.Single(Assert.Single(preview.Tables).Rows)[0]);
+            var start = commands.Commands[0];
+            Assert.Contains("--cap-drop=ALL",start); Assert.Contains("--network=none",start);
+            Assert.Contains("--security-opt=no-new-privileges:true",start);
+            Assert.Equal("--cap-add=NET_BIND_SERVICE",Assert.Single(start,a=>a.StartsWith("--cap-add=")));
             var restore = Assert.Single(commands.Commands, c => c.Last().Contains("RESTORE DATABASE")).Last();
             Assert.Contains("RESTORE VERIFYONLY", restore);
             Assert.Contains("MOVE N'data''name' TO N'/var/opt/mssql/data/probe_0.mdf'", restore);
             Assert.Contains("MOVE N'log' TO N'/var/opt/mssql/data/probe_1.ldf'", restore);
             Assert.DoesNotContain("production", restore);
-            Assert.Contains(commands.Commands, c => c[0] == "cp");
+            Assert.DoesNotContain(commands.Commands, c => c[0] == "cp" || c.Contains("--user=0"));
+            Assert.Contains(commands.Commands, c=>c.Last()=="umask 077; cat > /var/opt/mssql/probe.bak");
+            Assert.Equal("fixture native artifact",commands.RestoredSql);
             Assert.Contains(commands.Commands, c => c.Contains("-b"));
+            var query = commands.Commands.First(c=>c.Contains("/opt/mssql-tools18/bin/sqlcmd"));
+            Assert.DoesNotContain("-h",query); Assert.DoesNotContain("-W",query);
+            Assert.Contains("-y",query); Assert.Contains("tcp:127.0.0.1,1433",query);
+        }
+        finally { File.Delete(path); }
+    }
+
+    [Fact]
+    public async Task ReloadedRuntime_AffectsNextScope_AndCannotPreventInFlightCleanup()
+    {
+        var path=Path.Combine(Path.GetTempPath(),"restore-reload-"+Guid.NewGuid()+".zip");
+        try
+        {
+            using(var archive=ZipFile.Open(path,ZipArchiveMode.Create))
+            { using var writer=new StreamWriter(archive.CreateEntry("probe.sql").Open()); writer.Write("CREATE TABLE probe(id int);"); }
+            var config=new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string,string?> {
+                ["RestoreTests:Enabled"]="true",["RestoreTests:PostgresImage"]="fixture/postgres:original",["RestoreTests:MemoryMiB"]="4096" }).Build();
+            var commands=new ContainerCommandsFixture(); var runner=new DockerRestoreTestRunner(config,commands);
+            config["RestoreTests:Enabled"]="false"; config["RestoreTests:PostgresImage"]="fixture/postgres:reloaded"; config["RestoreTests:MemoryMiB"]="8192";
+            var test=new BackupTest { Id=Guid.NewGuid(),DatabaseType=DatabaseType.PostgreSql };
+            await runner.Run(test,path,default);
+            Assert.Contains("fixture/postgres:original",commands.Commands[0]); Assert.Contains("--memory=4096m",commands.Commands[0]);
+            await runner.Cleanup(test.Id,default);
+            Assert.Contains(commands.Commands,c=>c[0]=="ps");
+            var nextCommands=new ContainerCommandsFixture(); var next=new DockerRestoreTestRunner(config,nextCommands);
+            await next.Run(new BackupTest { Id=Guid.NewGuid(),DatabaseType=DatabaseType.PostgreSql },path,default);
+            Assert.Contains("fixture/postgres:reloaded",nextCommands.Commands[0]); Assert.Contains("--memory=8192m",nextCommands.Commands[0]);
         }
         finally { File.Delete(path); }
     }

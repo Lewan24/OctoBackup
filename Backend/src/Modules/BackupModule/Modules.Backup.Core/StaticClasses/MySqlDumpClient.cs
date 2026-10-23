@@ -6,9 +6,9 @@ namespace Modules.Backup.Core.StaticClasses;
 
 public sealed record MySqlDumpClient(string Executable, bool IsMariaDb, IReadOnlySet<string> Options)
 {
-    public static async Task<MySqlDumpClient> Find(CancellationToken token = default)
+    public static async Task<MySqlDumpClient> Find(CancellationToken token = default, string? configuredExecutable = null)
     {
-        foreach (var tool in new[] { "mysqldump", "mariadb-dump" })
+        foreach (var tool in DumpToolPaths.MySqlCandidates(configuredExecutable))
         {
             var version = await Probe(tool, token, "--version");
             if (version is null) continue;
@@ -16,7 +16,7 @@ public sealed record MySqlDumpClient(string Executable, bool IsMariaDb, IReadOnl
             if (help is null) continue;
             return FromHelp(tool, version, help);
         }
-        throw new DumpFailureException("mysqldump", null, "No usable MySQL/MariaDB dump client was found. Install mysqldump or mariadb-dump on the API host PATH and restart the API to refresh its environment.");
+        throw new DumpFailureException("mysqldump", null, "No usable MySQL/MariaDB dump client was found. Install mysqldump or mariadb-dump on the API host, or set DatabaseTools:MySqlDumpPath to its absolute executable path. A client inside the database container is not available to a host-run API. Restart after changing PATH.");
     }
 
     public static MySqlDumpClient FromHelp(string executable, string version, string help)

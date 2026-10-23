@@ -23,15 +23,16 @@ using Modules.Shared.Settings;
 
 var builder = WebApplication.CreateBuilder(args);
 var localSettingsCreated = DevelopmentSettings.Configure(builder.Configuration, builder.Environment.ContentRootPath, builder.Environment.IsDevelopment());
+var settingsReloadLog = ReloadableAppSettings.Configure(builder.Configuration, builder.Environment.ContentRootPath);
 builder.WebHost.ConfigureKestrel(o => o.Limits.MaxRequestBodySize = 128 * 1024);
 var dataRoot = DevelopmentSettings.ResolveDataDirectory(builder.Configuration, builder.Environment.ContentRootPath);
 var sshPins = builder.Configuration["OCTOBACKUP_SSH_HOST_KEYS"];
 if (string.IsNullOrWhiteSpace(sshPins)) sshPins = builder.Configuration["Ssh:HostKeysFile"];
 DbCommon.Configure(dataRoot, string.IsNullOrWhiteSpace(sshPins) ? null : Path.GetFullPath(sshPins, builder.Environment.ContentRootPath));
-builder.Services.AddSingleton(_ => new FileApplicationSettings(builder.Configuration, dataRoot));
+builder.Services.AddSingleton(_ => new FileApplicationSettings(builder.Configuration, dataRoot, _.GetRequiredService<ILogger<FileApplicationSettings>>()));
 builder.Services.AddSingleton<IApplicationSettings>(provider => provider.GetRequiredService<FileApplicationSettings>());
 builder.Services.AddDataProtection().SetApplicationName("OctoBackup")
-    .PersistKeysToFileSystem(new DirectoryInfo(Path.Combine(dataRoot, "keys")));
+    .PersistKeysToFileSystem(new DirectoryInfo(Path.GetFullPath(builder.Configuration["DataProtection:KeysDirectory"] ?? Path.Combine(dataRoot, "keys"), builder.Environment.ContentRootPath)));
 var proxyEnabled = builder.Configuration.GetValue<bool>("ReverseProxy:Enabled");
 if (proxyEnabled)
 {
@@ -108,6 +109,7 @@ builder.Services.AddHostedService<BackupWorker>();
 builder.Services.AddHostedService<Modules.Backup.Application.Workers.RestoreTestWorker>();
 
 var app = builder.Build();
+settingsReloadLog.Logger = app.Logger;
 if (localSettingsCreated)
     app.Logger.LogInformation("Created private development settings in {SettingsFile}. Initial administrator credentials are in that file; existing accounts are never replaced.",
         Path.Combine(builder.Environment.ContentRootPath, DevelopmentSettings.FileName));
@@ -160,6 +162,7 @@ using (var scope = app.Services.CreateScope())
     _ = scope.ServiceProvider.GetRequiredService<ICryptoService>();
     await scope.ServiceProvider.GetRequiredService<AppIdentityDbContext>().Database.MigrateAsync();
     await scope.ServiceProvider.GetRequiredService<BackupsDbContext>().Database.MigrateAsync();
+    await scope.ServiceProvider.GetRequiredService<Modules.Backup.Application.Services.BackupEncryptionService>().Initialize();
     await BootstrapAdmin.Initialize(scope.ServiceProvider, builder.Configuration);
 }
 app.Logger.LogInformation("OctoBackup API starting in {Environment}. Data: {DataPath}. Trusted proxy: {ProxyEnabled}. SPA hosting: {ServeFrontend}.",

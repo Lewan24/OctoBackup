@@ -28,7 +28,7 @@ identifies the failing stage without logging provider output or SQL text.
 | `Backend/src/Modules/AdministrationModule` | User listing, explicit confirmation/editing and blocking |
 | `Backend/src/Server.Api/Configuration` | Development secrets and durable runtime administrator settings/endpoints |
 | `Backend/src/Modules/BackupModule` | Connections, SSH tunnels, access assignments, schedules, backup execution, history and realtime invalidation |
-| `Backend/src/Modules/CryptoModule` | AES credential encryption; versioned GCM writes and legacy CBC reads |
+| `Backend/src/Modules/CryptoModule` | Data Protection credential writes; legacy GCM/CBC reads |
 | `Backend/src/Modules/Shared` | Data directory and endpoint validation/administrator filters |
 | `Backend/tests/OctoBackup.Tests` | API security, encryption and filesystem regression tests |
 | `Frontend/src/app` | Routing, authenticated shell, session and SignalR lifecycle |
@@ -62,7 +62,11 @@ migrations and limit unnecessary namespace churn. There is no active Blazor host
 6. MySQL/MariaDB and PostgreSQL dump tools write unique files; ZIP compression
    follows. SQL Server uses an escaped database identifier and parameterized backup
    destination to create a native `.bak` on the database host. A shared filesystem
-   mounted at the same absolute path is required for SQL Server downloads.
+   with an optional deployment-owned remote-root mapping is required for SQL Server
+   downloads. Dedicated staging mode copies a generated native file from a narrowly
+   shared staging volume into private API storage, then removes staging plaintext.
+   SQLite uses its online snapshot API from an approved local source
+   mount. Publication encrypts artifacts only when an individual key or enabled global policy applies.
    MySQL client capabilities determine compatible flags; TCP, disabled histogram
    queries and logical per-database GTID handling avoid client/server mismatches.
    Bounded stderr capture becomes fixed safe failure hints, never raw provider text.
@@ -89,10 +93,14 @@ without its key prevents automatic key generation. Shared storage and SSH pin
 configuration are initialized before module services and EF contexts are created.
 
 Database and SSH secrets are encrypted before SQLite persistence. Blank secrets on
-edit preserve existing values. New ciphertext uses authenticated AES-GCM with random
-nonces. Legacy unprefixed AES-CBC is readable for migration compatibility; editing
-the secret re-encrypts it as GCM. Backup ZIP files themselves are **not encrypted**.
-Use encrypted volumes or storage encryption where required.
+edit preserve existing values. New credential ciphertext uses purpose-isolated
+.NET Data Protection. Legacy
+GCM/CBC remains readable with CRYPTO_KEY; editing upgrades the secret. Backup
+artifacts use portable chunked AES-256-GCM with versioned global/connection keys
+protected in SQLite by Data Protection. A persisted disabled-by-default policy gates
+global encryption; custom individual keys work independently. Key changes preserve older versions.
+See [backup encryption](BACKUP_ENCRYPTION.md) for the format, offline recovery,
+download confirmation, SQLite snapshots and transient plaintext storage limits.
 
 ## Baseline analysis and intentional changes
 
@@ -160,3 +168,20 @@ Queued rows survive restarts. Previously running/stopping rows become Interrupte
 and are not automatically replayed. Hard crashes can leave orphan files requiring
 inspection. Gates and startup recovery assume one API process per data directory;
 this is not distributed worker coordination.
+
+Provider connection checks share the same SSH tunnel helper as exports and return
+fixed safe error categories. PostgreSQL password connections and pg_dump explicitly
+disable GSS negotiation while preserving selected TLS verification. Dump executable
+paths are deployment-owned DatabaseTools settings; console clients and container
+clients are separate installations. See DATABASE_CONNECTIONS.md.
+
+## Configuration reload
+
+The API watches base/environment/Development Local JSON plus an optional private
+runtime file. Each provider atomically retains its last valid data on incomplete
+saves or missing files. Only runtime sections reload; startup storage/key/HTTP/proxy
+values stay frozen and log a restart notice. Explicit user-secrets/environment/CLI
+precedence is preserved. Deployment application defaults reload until an admin
+snapshot is saved; that snapshot continues to win. Restore runner scopes capture
+image/resource settings so active jobs and cleanup survive later configuration
+changes. Enabling the runtime triggers orphan recovery. See CONFIGURATION_RELOAD.md.

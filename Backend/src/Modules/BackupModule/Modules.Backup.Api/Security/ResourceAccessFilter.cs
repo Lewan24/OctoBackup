@@ -9,7 +9,7 @@ using Modules.Backup.Shared.Dtos;
 namespace Modules.Backup.Api.Security;
 
 // Applied to all server and backup endpoints; arguments have already been bound.
-public sealed class ResourceAccessFilter(BackupsDbContext db, Modules.Shared.Settings.IApplicationSettings settings) : IEndpointFilter
+public sealed class ResourceAccessFilter(BackupsDbContext db, Modules.Shared.Settings.IApplicationSettings settings, IConfiguration configuration) : IEndpointFilter
 {
     public async ValueTask<object?> InvokeAsync(EndpointFilterInvocationContext c, EndpointFilterDelegate next)
     {
@@ -22,7 +22,15 @@ public sealed class ResourceAccessFilter(BackupsDbContext db, Modules.Shared.Set
         }
         if (c.Arguments.OfType<ServerConnectionDto>().FirstOrDefault() is { } server)
         {
-            if (!Modules.Shared.Settings.DatabaseHostPolicy.AllowsConnection(settings.Current, server.ServerHost,
+            if (server.DbType == Modules.Backup.Shared.Enums.DatabaseType.Sqlite)
+            {
+                try { _ = Modules.Backup.Application.Services.SqliteBackup.Source(configuration, server.DbName, server.IsTunnelRequired); }
+                catch (Modules.Backup.Application.Services.BackupQueueException error) { return Results.Problem(statusCode: error.StatusCode, title: error.Message); }
+                server.ServerHost = "localhost";
+                server.ServerPort = 1;
+                server.DbUser = "sqlite";
+            }
+            else if (!Modules.Shared.Settings.DatabaseHostPolicy.AllowsConnection(settings.Current, server.ServerHost,
                 server.IsTunnelRequired, server.Tunnel?.ServerHost, server.Tunnel?.RemoteHost))
                 return Results.BadRequest(Modules.Shared.Settings.DatabaseHostPolicy.DeniedMessage);
             server.ServerHost = Modules.Shared.Settings.DatabaseHostPolicy.Normalize(server.ServerHost);

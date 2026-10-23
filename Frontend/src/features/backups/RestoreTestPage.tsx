@@ -47,7 +47,7 @@ export type RestoreReport = {
 export function RestoreTestPage() {
   const { id } = useParams();
   const client = useQueryClient();
-  const availability = useRestoreAvailability();
+  const availability = useRestoreAvailability(id);
   const [selected, setSelected] = useState(0);
   const key = ["restore-report", id];
   const report = useQuery({

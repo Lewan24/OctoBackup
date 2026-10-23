@@ -86,13 +86,35 @@ zarządzanie kontami i uprawnieniami. Testy odtwarzania uruchamiają jednorazowe
 i zapisują podgląd próbek tabel oraz danych. Ręczny test jest dostępny przez **Test / preview**
 w historii kopii. Administrator może włączyć automatyczne testy po udanej kopii.
 Najpierw skonfiguruj środowisko wykonawcze: [instrukcja](OPERATIONS.md#restore-testing).
-Panel pokazuje, gdy testowanie jest wyłączone we wdrożeniu. Po zmianie prywatnej
-konfiguracji uruchom API ponownie i ponów test; zapisane raporty pozostają dostępne.
+Panel pokazuje, gdy testowanie jest wyłączone we wdrożeniu. Zmiany prywatnej
+konfiguracji JSON są przeładowywane; pobierz wybrany obraz i ponów test. Zapisane
+raporty pozostają dostępne.
 Nagłówki kopii wybierają zgodną, zatwierdzoną wersję obrazu. Obraz musi być wcześniej
 pobrany; kopie PostgreSQL 17 wymagają serwera testowego 17 lub nowszego. Testy
 MySQL/MariaDB odczytują właściwą bazę kopii i zachowują dane binarne.
-Integracja poczty, MFA i szyfrowanie plików kopii pozostają w planach. ZIP nie szyfruje
-danych. SQL Server wymaga wspólnej ścieżki plików dla tworzenia i pobierania kopii.
+Szyfrowanie kopii jest domyślnie wyłączone. Administrator może włączyć szyfrowanie
+globalne w panelu po wpisaniu i potwierdzeniu własnego hasła. Indywidualne hasło
+serwera działa niezależnie od przełącznika globalnego i można je ustawić podczas
+tworzenia/edycji połączenia lub w ustawieniach szyfrowania serwera. Wyłączenie
+szyfrowania dotyczy nowych kopii; istniejące zachowują stare klucze i wymagane hasła.
+Hasła/klucze pozostają chronione przez .NET Data Protection; zachowaj wolumin kluczy.
+SQLite obsługuje migawki plików z katalogu wskazanego przez wdrożenie, także z WAL.
+SQL Server wymaga współdzielonego katalogu; konfiguracja mapuje różne ścieżki montowania.
+[Szyfrowanie, zgodność silników i narzędzie offline](BACKUP_ENCRYPTION.md).
+[Konfiguracja połączeń, narzędzi eksportu, prywatnych sieci Docker i katalogu
+współdzielonego SQL Server](DATABASE_CONNECTIONS.md). API może łączyć się z bazą bez
+opublikowanego portu hosta, jeśli oba kontenery należą do tej samej sieci Docker.
+Klient konsolowy wymaga lokalnego mysqldump/mariadb-dump; można wskazać ścieżkę
+w DatabaseTools. Połączenia PostgreSQL z hasłem pomijają negocjację GSS/Kerberos,
+zachowując wybraną politykę TLS.
+Integracja poczty i MFA pozostają w planach.
+
+Zmiany ustawień wykonawczych w JSON (np. map obrazów testów przywracania) są
+wczytywane bez restartu API. W Dockerze użyj compose.config-reload.yaml i montowanego
+katalogu konfiguracji. Obraz wskazany w mapie pobierz na tym samym demonie Docker,
+którego używa API, np. `docker image pull mysql:8.4`, a następnie ponów test.
+[Przeładowywanie konfiguracji i pobieranie obrazów](CONFIGURATION_RELOAD.md).
+Ścieżki danych/kluczy, HTTP/proxy i zmienne środowiskowe wymagają restartu wdrożenia.
 
 [Architektura](ARCHITECTURE.md) | [Bezpieczeństwo](SECURITY.md) |
 [Postęp i testy](MIGRATION.md) | [Plan](ROADMAP.md) | [Licencja MIT](../LICENSE)

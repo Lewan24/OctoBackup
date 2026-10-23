@@ -51,7 +51,7 @@ public static class DevelopmentSettings
             if (sources[index] is JsonConfigurationSource source &&
                 Path.GetFileName(source.Path) is "appsettings.json" or "appsettings.Development.json")
                 insertAt = index + 1;
-        var localSource = new JsonConfigurationSource { Path = localFile, Optional = true, ReloadOnChange = false };
+        var localSource = new JsonConfigurationSource { Path = localFile, Optional = true, ReloadOnChange = true };
         localSource.ResolveFileProvider();
         sources.Insert(insertAt, localSource);
         return created;

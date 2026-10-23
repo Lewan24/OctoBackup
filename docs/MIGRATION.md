@@ -1,5 +1,213 @@
 # Migration progress
 
+## Reloadable runtime appsettings and restore-image instructions (2026-10-23)
+
+Appsettings base/environment/Development Local JSON and an optional private runtime
+file now reload safe runtime sections. Malformed, unreadable or temporarily deleted
+files retain their last valid settings; logs omit values and parser contents.
+Startup storage/key/HTTP/proxy settings remain frozen and changes warn that a
+restart is required. Environment and command-line precedence remains intact.
+Application defaults update until an administrator saves the authoritative snapshot.
+
+Restore runners capture settings per scope, so subsequent jobs use new image maps
+and limits while in-flight cleanup remains possible after disablement. Enabling the
+runtime triggers orphan recovery; browser availability refreshes every five seconds.
+Added a Docker directory-mount/polling override and private runtime JSON template.
+Both READMEs and operations/security/architecture documentation describe the behavior.
+CONFIGURATION_RELOAD.md explains exact-tag/digest image pulls on the same test daemon,
+including host-socket and remote-context examples. Mapping changes do not download
+images, and failed tests require an explicit retry. Deploy the new API once; later
+runtime JSON edits and image pulls require no API restart.
+
+Validation: solution build passed with no warnings/errors, 101 backend tests passed,
+14 frontend tests and the production TypeScript/Vite build passed, and desktop/mobile
+Playwright workflows both passed. Reload tests exercise real file replacement,
+missing/malformed saves, startup freezing, precedence, updated image selection,
+persisted admin settings and in-flight cleanup. An initial frontend run under
+concurrent backend-test load timed out on an existing async empty-state assertion;
+the complete rerun passed without test changes. Compose overrides parsed successfully;
+npm and direct/transitive NuGet audits reported no vulnerabilities. No new live
+provider restore or container image pull was performed in this configuration change.
+
+## Optional global encryption and inline server passwords (2026-10-23)
+
+Changed new-backup encryption policy at the user's request. Global encryption now
+starts disabled on fresh installs and upgrades through an additive policy-table
+migration. Startup no longer generates a backup password. Only administrators may
+enable/disable global encryption, and enabling/re-enabling requires a matching
+custom password. Rotation/reset behavior remains available; disable does not remove
+keys or prevent old encrypted downloads/restore tests. Historical generated-key
+recovery is retained only for earlier files and cannot enable the global policy.
+
+Inherited connections produce unencrypted new files while global encryption is off
+and use the custom global key when on. Individual passwords encrypt independently
+of the global switch. Server create/edit forms now offer inheritance/individual
+passwords; edits default to preserving current keys. Replacing/removing an existing
+individual password requires its old password, with administrator reset still in
+Application settings. Connection/tunnel/key changes commit in one transaction and
+share the key mutation lock, so password or stale-key errors roll back connection
+changes. Scoped status/availability exposes no password, and only global admin
+operations can update the persisted policy. Read-only status requests no longer
+consume the password-operation rate budget. Plaintext downloads are labeled
+unencrypted rather than legacy, since unencrypted new backups are now intentional.
+
+Missing restore-image mappings now include the detected numeric source version,
+release and exact configuration setting (for example source 8.3.2, release 8.3,
+RestoreTests:MySqlImages:8.3). PostgreSQL reports its required source/dump major and
+MariaDB its family-specific release. Only bounded numeric tokens enter the existing
+safe restore failure/report/log path; raw SQL/header text is not logged. Image
+selection remains deployment-owned and images still must be preloaded.
+
+Validation: 98 backend tests passed, 14 frontend tests passed, production
+TypeScript/Vite build passed, and both desktop/mobile Playwright workflows passed.
+Coverage includes disabled defaults, custom-password validation, admin-only global
+writes, independent individual keys, toggle/rotation/history behavior, atomic HTTP
+create/edit rollback, plaintext defaults, retained legacy generated-key recovery,
+upgrade policy persistence, wrong key-ring failure, inline form payloads and safe
+version diagnostics. Browser checks enable/disable global encryption and create,
+rotate and edit individual keys while global encryption is disabled. npm/NuGet
+audits reported no vulnerabilities. Reviewed the admin toggle and inline-password
+form screenshots on desktop/mobile. All database test data was disposable; no live
+provider matrix or penetration test was performed in this policy-only change.
+
+The persisted policy means upgrades intentionally stop global encryption for future
+inherited backups until an administrator enables a custom password. Existing
+individual passwords continue to encrypt; existing encrypted artifacts retain their
+original passwords and saved keys. Restart/redeploy to apply the additive migration
+and new code. Both READMEs, product/security/architecture/operations and encryption
+instructions now describe this opt-in behavior. Previous verification entries below
+record historical defaults and remain unchanged as evidence of earlier work.
+
+## Provider tools, PostgreSQL transport and SQL Server deployment (2026-10-23)
+
+Investigated the reported failures using read-only connection metadata and synthetic
+backup fixtures. The console host had pg_dump 18.6 but no MySQL/MariaDB dump binary.
+A system package install required interactive sudo authentication; instead, installed
+the official signed Arch MariaDB client/libraries under ignored Backend/artifacts,
+verified both package signatures, and configured its absolute wrapper path in the
+existing private local settings. No passwords or encryption keys were replaced.
+Actual application version/help probes and a synthetic MySQL 8.4 export passed.
+
+Added deployment-owned DatabaseTools:MySqlDumpPath/PostgresDumpPath and common Windows
+client discovery. Invalid configured paths fail explicitly. The API image now
+installs MySQL client and pg_dump 18 from the signed official PGDG apt repository,
+avoiding Noble's default pg_dump 16 incompatibility with PostgreSQL 17/18 sources.
+
+Twice compared the existing saved PostgreSQL connection without exporting its data:
+default Npgsql GSS negotiation timed out, while explicit GSS disable succeeded with
+the same saved credentials. Connection checks now use password transport explicitly,
+and pg_dump receives PGGSSENCMODE=disable. Selected verified TLS remains intact.
+Connection tests share export SSH setup and report fixed safe DNS/TCP/timeout, TLS,
+authentication, missing-database and credential-key-ring categories. Raw provider
+messages and credentials are not exposed.
+
+Added optional dedicated SQL Server staging: deployment-configured local and remote
+roots point to the same share, with generated flat filenames, symlink checks,
+private local copies, encryption and staging removal. Legacy whole-backup-root
+mapping remains compatible. Errors explain mount and service-account permissions
+through safe queue messages. compose.sqlserver-storage.yaml provisions a separate
+volume and limited initialization/service groups without exposing metadata/keys.
+compose.private-network.yaml attaches only the API to an existing stack network;
+no database host ports or source Docker socket are required.
+
+Live checks found and fixed additional restore regressions: MariaDB client branding
+misidentified MySQL 8.4 archives (source-server headers now take precedence); SQL
+Server's declared NET_BIND_SERVICE file capability could not execute after all
+capabilities were dropped (only that capability is explicitly allowed); sqlcmd -h
+conflicted with -y 0; localhost lookup failed inside the networkless runtime; and
+Docker refused cp into a read-only root despite a writable tmpfs destination.
+Native readiness now uses explicit TCP loopback, compatible sqlcmd flags and
+bounded non-root stdin transfer into private tmpfs. Networkless/read-only-root/
+no-new-privileges restrictions remain, without privileged mode, SYS_PTRACE or root
+exec. Added regressions for these constraints and source-family detection.
+
+Verification: 94 backend tests passed, frontend TypeScript/build and 11 tests passed;
+both desktop/mobile Playwright workflows and the final API runtime image build passed.
+Fixed an ambiguous browser assertion matching both application and encryption save notices.
+Live PostgreSQL 18 and MySQL 8.4 sources with no published ports passed real-provider
+export, encryption, authenticated recovery and independent restore with two-table
+inventories and matching representative rows. The workspace-local MariaDB 13 client
+also exported a separate MySQL 8.4 fixture which restored successfully after the
+source-header fix. SQL Server 2022 passed a native COPY_ONLY/CHECKSUM export using
+separate API/SQL staging mount paths, encryption/recovery, staging plaintext removal
+and an independent native restore with matching sample data. These supersede the
+earlier native SQL Server smoke limitation for this basic fixture only.
+
+The saved production-like PostgreSQL check was SELECT 1 only; no real user database
+was exported/restored. ProviderSmoke/RestoreSmoke and the Linux orchestration script
+use generated backup_probe schemas, accounts, containers and isolated networks.
+Temporary credential files and containers/networks are removed; synthetic artifacts
+remain under ignored Backend/artifacts. Dependency audits reported no npm or NuGet
+vulnerabilities. Both new Compose overlays parse with disposable interpolation values.
+Full operational instructions are in DATABASE_CONNECTIONS.md and both READMEs.
+
+Remaining limits: a real SQL Server shared filesystem must still be provisioned on
+both hosts; configuration does not retrieve remote files over SQL. Cross-host SMB/NFS,
+Windows service ACLs, forced-TLS sources, additional native layouts/versions and
+production-size databases need deployment-specific verification. Native tests do
+not prove all business data, constraints or disaster recovery. The API requires a
+restart/redeploy to load these binary/startup changes. Source host allowlists and
+certificate/SSH verification were not bypassed. No penetration test is claimed.
+
+## Backup encryption and mounted SQLite (2026-10-23)
+
+Audited all requested engines. Existing MySQL/MariaDB and PostgreSQL exports and
+version-aware Docker restores remain implemented; earlier live evidence covers
+MySQL 5.7/8.4, MariaDB 10.11 and PostgreSQL 16/17/18. SQL Server still requires a
+shared native-backup filesystem; added deployment-owned remote-root mapping for
+different mount paths and COPY_ONLY to preserve the normal differential base.
+Native SQL Server live export/restore remains unverified in this environment.
+
+Added default chunked AES-256-GCM backup encryption, a generated global recovery
+password on first run, versioned global/individual keys protected by .NET Data
+Protection in SQLite, old/new password confirmation, administrator resets, stale-key
+protection and inherited global settings. The admin panel has a scope selector;
+assigned users manage connection keys from Servers. History distinguishes encrypted
+and legacy plaintext files and supports encrypted downloads or original-password-
+confirmed decrypted downloads. Automated tests use saved key versions internally.
+A standalone offline decryptor authenticates files without the API/metadata/key ring.
+New connection/SSH secrets use Data Protection with legacy GCM/CBC reads preserved;
+Identity login passwords remain hashed. The existing Compose data volume preserves
+/data/keys, now configurable using DataProtection:KeysDirectory.
+
+Added a SQLite provider restricted to a separate deployment-owned source mount,
+with basename/symlink/sidecar/application-storage checks and no SSH/arbitrary paths.
+SQLite's online backup API captures committed WAL data; the destination is finalized
+in standalone journal mode before encryption. Validation reopens the snapshot
+read-only with extensions/trusted schema disabled, performs integrity_check and saves
+bounded table/value previews. This is in-process snapshot validation, not Docker
+isolation. It can run with Docker restore testing disabled. Export/cancellation and
+runtime limitations are documented in BACKUP_ENCRYPTION.md.
+
+Verification: 87 backend tests passed, followed by two focused SQLite/key tests after
+adding main-file/sidecar symlink rejection. Eleven frontend tests and the production
+TypeScript/Vite build passed. Desktop and mobile Playwright workflows passed,
+including generated-key reveal/hide, global administrator reset and individual key
+selection. A disposable PostgreSQL 17 Alpine smoke check recovered an encrypted
+fixture, restored two tables, matched the representative row, rejected corrupt SQL
+and removed its containers. The offline CLI recovered a synthetic API artifact with
+the right password and rejected a wrong password without leaving partial output.
+Reviewed final desktop/mobile settings screenshots for layout, secret visibility and overflow.
+NuGet direct/transitive and npm audits reported no vulnerabilities; Compose parses
+with disposable interpolation values. No developer database/backup was used.
+
+The new backend tests cover empty/multichunk round trips, tampering/truncation/trailing
+bytes/wrong keys, global and individual rotation, inherited keys, non-admin reset
+denial, key-ring recovery/fail-closed behavior, HTTP access/CSRF/password checks,
+encrypted filenames and downloads, WAL snapshots, empty/populated SQLite tables,
+restore queue execution and source-path rejection. Browser checks use real key
+management APIs; report-preview fixtures remain separate from live restore evidence.
+
+Existing plaintext artifacts are not automatically rewritten. Key changes/resets
+affect future files; old passwords and protected key versions remain necessary for
+old copies. Staging/decrypted work files and saved preview samples contain plaintext;
+filesystem protection remains necessary. Large browser decrypted downloads buffer a
+Blob, SQLite copy cancellation can be delayed, and Docker recovery unavailability
+can delay the shared restore worker. Remote SQLite transport, SQL Server SFTP/object
+retrieval, native live SQL Server validation and external key-ring wrapping remain
+follow-up work. These checks are not a penetration test or full disaster-recovery
+certification. See BACKUP_ENCRYPTION.md for setup, format and recovery commands.
+
 ## Restore version/database compatibility (2026-10-22)
 
 Analyzed the supplied test ID with read-only metadata and bounded archive-header

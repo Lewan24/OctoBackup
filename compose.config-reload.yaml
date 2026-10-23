@@ -1,0 +1,9 @@
+# Bind the DIRECTORY so atomic file replacement is visible inside the container.
+# Put appsettings.Runtime.json in ./config; do not commit private deployment values.
+services:
+  api:
+    environment:
+      Configuration__ReloadFile: /config/appsettings.Runtime.json
+      DOTNET_USE_POLLING_FILE_WATCHER: "true"
+    volumes:
+      - ./config:/config:ro

@@ -38,8 +38,9 @@ The restore page and administrator toggle read deployment availability explicitl
 If testing is disabled, the page explains the required runtime setup and manual
 testing is disabled; an administrator cannot newly enable the automatic option
 until the deployment runtime is enabled. Existing saved reports remain readable.
-Restart a console API after changing private `RestoreTests` configuration, refresh
-the browser and retry a previously failed test. A missing report returns JSON null,
+Valid JSON changes to private `RestoreTests` configuration reload automatically for
+new tests. Pull the selected image on the same daemon, then retry a previously
+failed test. Environment variables and Docker mounts still require a restart/recreate. A missing report returns JSON null,
 not an empty body. Failure warnings include fixed safe diagnostic reasons; raw SQL,
 provider output and credentials remain excluded.
 
@@ -215,10 +216,10 @@ configure shared networking. `host.docker.internal` refers to the host from the 
 container; `localhost` inside a container refers to that container itself.
 
 SQL Server writes native `.bak` files on its own host. Downloads require a shared
-backup filesystem visible at the same absolute path to SQL Server and API with
+backup filesystem visible to SQL Server and API (use `SqlServer:RemoteBackupRoot` when their mount roots differ), with
 correct write/read permissions. The optional development database container does
 not provision that shared path. A Windows console API and Linux SQL Server cannot
-share arbitrary Windows paths; connection testing alone does not prove backups work.
+share arbitrary Windows paths without an actual common filesystem and root mapping; connection testing alone does not prove backups work.
 
 ## Direct dotnet console configuration (without launcher)
 
@@ -412,8 +413,7 @@ Bootstrap does not overwrite users or create a second admin on an existing store
 
 Legacy deployments used a public development key/certificate. Rotate those secrets
 with a reviewed credential migration; replacing CRYPTO_KEY alone makes old secrets
-unreadable. Legacy CBC remains readable; new writes use GCM. ZIP files themselves
-are not encrypted. Restrict storage permissions, encrypt volumes, monitor failures
+unreadable. Legacy GCM/CBC remains readable; new credential writes use Data Protection. New backup files are encrypted when a connection has an individual key or the administrator has enabled global encryption; existing plaintext files remain plaintext. Restrict storage permissions, encrypt volumes, monitor failures
 and disk space, and verify restores independently. See SECURITY.md and ROADMAP.md.
 
 Proxy guidance: [Microsoft forwarded headers documentation](https://learn.microsoft.com/en-us/aspnet/core/host-and-deploy/proxy-load-balancer?view=aspnetcore-10.0).
@@ -449,3 +449,39 @@ docker compose -p octobackup-check -f compose.yaml -f compose.dbs.yaml down --vo
 The smoke script is reserved for this disposable project: it seeds test tables,
 initializes development MySQL grants, and writes downloaded ZIPs beneath
 Backend/artifacts/compose-check. Do not point it at production infrastructure.
+
+## Backup encryption and SQLite source mounts
+
+Follow [backup encryption and provider setup](BACKUP_ENCRYPTION.md). Preserve the
+existing `/data/keys` ring on the Compose data volume; `DataProtection:KeysDirectory`
+can select a different persistent directory. Global encryption defaults off. Enable it in Application settings with a confirmed
+custom password, or set an individual password in a server create/edit form. Save
+custom passwords outside the deployment. Changes affect only future files. The offline DecryptBackup
+tool recovers files with their original password without the metadata database.
+SQLite source files require a separate narrow mount and `Sqlite:SourceDirectory`.
+`Sqlite:RestoreTestsEnabled` controls local read-only snapshot checks independently
+of Docker opt-in. SQL Server still requires shared native-backup storage; set
+`SqlServer:RemoteBackupRoot` if the server sees a different root path.
+
+## Provider connection troubleshooting and private Docker databases
+
+See [DATABASE_CONNECTIONS.md](DATABASE_CONNECTIONS.md) for the complete SQL Server
+setup, host/client executable paths, PostgreSQL GSS/password transport diagnostics
+and external Docker network examples. `compose.private-network.yaml` attaches only
+the API to an existing stack network; database host ports are unnecessary there.
+`compose.sqlserver-storage.yaml` adds a dedicated native-backup staging volume with
+service-account permissions; the API copies into private storage, encrypts and
+removes staging plaintext. Set `SqlServer:LocalStagingDirectory` and
+`SqlServer:RemoteBackupRoot` to the same physical share's two mount paths. Do not
+mount API metadata or key directories into SQL Server.
+The API image includes MySQL client and pg_dump 18 from the signed official PGDG
+repository. Host-run APIs can use DatabaseTools:MySqlDumpPath/PostgresDumpPath.
+
+## Reloadable appsettings and image preloading
+
+See [CONFIGURATION_RELOAD.md](CONFIGURATION_RELOAD.md) for watched files, live versus
+startup-only settings, file/environment/admin precedence, the Docker directory mount
+and exact image-pull commands. Console Local JSON now reloads; malformed/missing JSON
+keeps its last valid settings. Use compose.config-reload.yaml for an editable runtime
+file in Docker. Pull the exact mapped image using the same Docker daemon as the API,
+then retry the restore test. No API restart is needed for a new image on that daemon.

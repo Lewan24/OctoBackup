@@ -19,6 +19,13 @@ public static class SafeBackupPath
         return true;
     }
 
+    public static FileStream CreatePrivateFile(string path, FileAccess access = FileAccess.Write)
+    {
+        var options = new FileStreamOptions { Mode = FileMode.CreateNew, Access = access, Options = FileOptions.Asynchronous };
+        if (!OperatingSystem.IsWindows()) options.UnixCreateMode = UnixFileMode.UserRead | UnixFileMode.UserWrite;
+        return new FileStream(path, options);
+    }
+
     public static string Segment(string value)
     {
         if (string.IsNullOrWhiteSpace(value) || value is "." or ".." || value.IndexOfAny(['/', '\\', ':']) >= 0 ||

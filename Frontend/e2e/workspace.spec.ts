@@ -33,6 +33,32 @@ test("sign in, manage a connection and schedule, inspect history, and sign out",
   await expect(
     page.getByRole("heading", { name: "Application settings", exact: true }),
   ).toBeVisible();
+  const encryption = page.getByRole("heading", {
+    name: "Global backup encryption",
+  });
+  await expect(encryption).toBeVisible();
+  await expect(
+    page.getByLabel("Enable global backup encryption"),
+  ).not.toBeChecked();
+  await page.getByLabel("Enable global backup encryption").check();
+  await page
+    .getByLabel("New encryption password", { exact: true })
+    .fill("GlobalBrowserBackupPassword123!");
+  await page
+    .getByLabel("Confirm new encryption password")
+    .fill("GlobalBrowserBackupPassword123!");
+  await page.getByRole("button", { name: "Save encryption settings" }).click();
+  await expect(
+    page.getByText("Encryption settings saved.", { exact: true }),
+  ).toBeVisible();
+  await expect(
+    page.getByLabel("Enable global backup encryption"),
+  ).toBeChecked();
+  await page.getByLabel("Enable global backup encryption").uncheck();
+  await page.getByRole("button", { name: "Save encryption settings" }).click();
+  await expect(
+    page.getByText("New backups are not encrypted.", { exact: true }),
+  ).toBeVisible();
   const approvedHost = `db.${testInfo.project.name}.internal`;
   const hosts = page.getByLabel("Allowed database hosts");
   const existingHosts = await hosts.inputValue();
@@ -51,7 +77,7 @@ test("sign in, manage a connection and schedule, inspect history, and sign out",
     .getByRole("button", { name: "Save settings", exact: true })
     .click();
   await expect(
-    page.getByRole("status").filter({ hasText: "Settings saved." }),
+    page.getByRole("status").filter({ hasText: /^Settings saved\./ }),
   ).toBeVisible();
   await page.reload();
   await expect(hosts).toHaveValue(
@@ -95,6 +121,13 @@ test("sign in, manage a connection and schedule, inspect history, and sign out",
   await page
     .getByLabel("Database password", { exact: true })
     .fill("SecretDatabase123!");
+  await page.getByLabel("Backup encryption mode").selectOption("individual");
+  await page
+    .getByLabel("Individual encryption password", { exact: true })
+    .fill("CreateIndividualPassword123!");
+  await page
+    .getByLabel("Confirm individual encryption password")
+    .fill("CreateIndividualPassword123!");
   await page.screenshot({
     path: testInfo.outputPath("connection-form.png"),
     fullPage: true,
@@ -106,11 +139,47 @@ test("sign in, manage a connection and schedule, inspect history, and sign out",
   const card = page
     .getByRole("article")
     .filter({ has: page.getByRole("heading", { name, exact: true }) });
+  await card
+    .getByRole("button", { name: "Backup encryption", exact: true })
+    .click();
+  await expect(
+    page.getByRole("heading", { name: "Connection backup encryption" }),
+  ).toBeVisible();
+  await page
+    .getByLabel("Current encryption password", { exact: true })
+    .fill("CreateIndividualPassword123!");
+  await page
+    .getByLabel("New encryption password", { exact: true })
+    .fill("IndividualBrowserBackup123!");
+  await page
+    .getByLabel("Confirm new encryption password")
+    .fill("IndividualBrowserBackup123!");
+  await page.getByRole("button", { name: "Save encryption settings" }).click();
+  await expect(
+    page.getByText("Uses an individual encryption password.", { exact: false }),
+  ).toBeVisible();
+  await page.getByRole("button", { name: "Cancel", exact: true }).click();
   await card.getByRole("button", { name: `Edit ${name}`, exact: true }).click();
   await expect(page.getByLabel("New database password (optional)")).toHaveValue(
     "",
   );
-  await page.getByRole("button", { name: "Cancel", exact: true }).click();
+  await expect(page.getByLabel("Backup encryption mode")).toHaveValue("keep");
+  await page.getByLabel("Backup encryption mode").selectOption("individual");
+  await page
+    .getByLabel("Current individual encryption password")
+    .fill("IndividualBrowserBackup123!");
+  await page
+    .getByLabel("Individual encryption password", { exact: true })
+    .fill("EditedIndividualPassword123!");
+  await page
+    .getByLabel("Confirm individual encryption password")
+    .fill("EditedIndividualPassword123!");
+  await page
+    .getByRole("button", { name: "Save connection", exact: true })
+    .click();
+  await expect(
+    page.getByRole("heading", { name: "Edit connection", exact: true }),
+  ).toHaveCount(0);
   await page.screenshot({
     path: testInfo.outputPath("connections.png"),
     fullPage: true,
@@ -199,7 +268,7 @@ test("sign in, manage a connection and schedule, inspect history, and sign out",
   ).toBeVisible();
   // UI fixture only: real queue/access/preview persistence are covered by API tests.
   let fixtureReport: object | null = null;
-  await page.route("**/api/backups/RestoreAvailability", (route) =>
+  await page.route("**/api/backups/RestoreAvailability*", (route) =>
     route.fulfill({ json: { enabled: true } }),
   );
   const completedReport = {
@@ -265,7 +334,7 @@ test("sign in, manage a connection and schedule, inspect history, and sign out",
   ).toBeVisible();
   await page.unroute("**/api/backups/RestoreReport?id=fixture-backup");
   await page.unroute("**/api/backups/TestBackup");
-  await page.unroute("**/api/backups/RestoreAvailability");
+  await page.unroute("**/api/backups/RestoreAvailability*");
   await page.goto("/users");
   await expect(
     page.getByRole("heading", { name: "Users & access", exact: true }),

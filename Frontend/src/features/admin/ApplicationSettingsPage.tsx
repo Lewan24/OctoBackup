@@ -1,3 +1,4 @@
+import { BackupEncryptionSettings } from "./BackupEncryptionSettings";
 import { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
@@ -52,7 +53,7 @@ export function ApplicationSettingsPage() {
     <>
       <PageHeading
         title="Application settings"
-        description="Control network access, account registration, and backup defaults."
+        description="Manage backup encryption, network access, account registration, and backup defaults."
       />
       <ErrorMessage error={query.error} />
       {query.isPending ? (
@@ -66,6 +67,7 @@ export function ApplicationSettingsPage() {
                   Settings saved. Changes apply without restarting the API.
                 </p>
               )}
+              <BackupEncryptionSettings />
               <SettingsEditor
                 key={`${query.data.revision}-${editorVersion}`}
                 settings={query.data}
@@ -96,7 +98,7 @@ export function ApplicationSettingsPage() {
                 kept outside this panel.
               </p>
               <ul>
-                <li>Encryption and bootstrap secrets</li>
+                <li>Data Protection key ring and bootstrap secrets</li>
                 <li>Storage locations and cookie keys</li>
                 <li>HTTPS, trusted proxies and incoming hostnames</li>
                 <li>Verified SSH host-key fingerprints</li>

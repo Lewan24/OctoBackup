@@ -3,7 +3,7 @@ import { Link } from "react-router-dom";
 import { restoreStatuses } from "./RestoreTestPage";
 import { useQuery } from "@tanstack/react-query";
 import { Download, Search, Archive } from "lucide-react";
-import { api } from "../../shared/api";
+import { api, downloadDecryptedBackup } from "../../shared/api";
 import type { Backup } from "../../shared/types";
 import { date } from "../../shared/types";
 import {
@@ -12,8 +12,11 @@ import {
   Loading,
   PageHeading,
   Status,
+  Field,
+  SubmitForm,
 } from "../../shared/ui";
 export function BackupsPage() {
+  const [decrypting, setDecrypting] = useState<Backup | null>(null);
   const [search, setSearch] = useState("");
   const [available, setAvailable] = useState(false);
   const [page, setPage] = useState(0);
@@ -41,6 +44,37 @@ export function BackupsPage() {
         title="Backup history"
         description="Find a copy, see when it was created, and download it securely."
       />
+      {decrypting && (
+        <section className="panel editor">
+          <h2>Download decrypted backup</h2>
+          <p>
+            Enter the encryption password used when this backup was created.
+            Your account must also have access to this server.
+          </p>
+          <SubmitForm
+            key={decrypting.id}
+            label="Decrypt and download"
+            onCancel={() => setDecrypting(null)}
+            onSubmit={async (data) => {
+              await downloadDecryptedBackup(
+                decrypting.id,
+                String(data.get("password")),
+              );
+              setDecrypting(null);
+            }}
+          >
+            <Field label="Backup encryption password / key">
+              <input
+                name="password"
+                type="password"
+                autoComplete="off"
+                required
+                maxLength={512}
+              />
+            </Field>
+          </SubmitForm>
+        </section>
+      )}
       <div className="toolbar">
         <label className="search">
           <Search size={18} />
@@ -115,14 +149,27 @@ export function BackupsPage() {
                         </td>
                         <td>
                           {!b.isDisabled ? (
-                            <a
-                              className="button secondary small"
-                              href={`/api/backups/Download?id=${encodeURIComponent(b.id)}`}
-                              download
-                            >
-                              <Download size={15} />
-                              Download
-                            </a>
+                            <>
+                              <a
+                                className="button secondary small"
+                                href={`/api/backups/Download?id=${encodeURIComponent(b.id)}`}
+                                download
+                              >
+                                <Download size={15} />
+                                {b.isEncrypted
+                                  ? "Download encrypted"
+                                  : "Download unencrypted"}
+                              </a>
+                              {b.isEncrypted && (
+                                <button
+                                  type="button"
+                                  className="secondary small"
+                                  onClick={() => setDecrypting(b)}
+                                >
+                                  Download decrypted
+                                </button>
+                              )}
+                            </>
                           ) : (
                             <span className="subtle">Unavailable</span>
                           )}

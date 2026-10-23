@@ -416,3 +416,8 @@ FodyWeavers.xsd
 
 # JetBrains Rider
 *.sln.iml
+scripts/__pycache__/
+
+# Private runtime JSON override, watched by the API.
+**/appsettings.Runtime.json
+/config/

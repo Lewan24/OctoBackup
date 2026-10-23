@@ -1,74 +1,39 @@
 using Modules.Backup.Core.StaticClasses;
 using System.Data;
-using System.Text;
 using Microsoft.Data.SqlClient;
 using Modules.Backup.Core.Entities.DbContext;
 using Modules.Backup.Shared.Enums;
 using Modules.Crypto.Shared.Interfaces;
 using MySqlConnector;
 using Npgsql;
-using Renci.SshNet;
 
 namespace Modules.Backup.Application.Static;
 
-internal static class ServerConnectionTester
+public static class ServerConnectionTester
 {
     public static async Task<(bool Result, string? ErrorMsg)> TestConnectionAsync(
         DbServerConnection conn,
         DbServerTunnel? tunnel,
-        ICryptoService cryptoService)
+        ICryptoService cryptoService, Microsoft.Extensions.Configuration.IConfiguration configuration)
     {
-        SshClient? sshClient = null;
-        ForwardedPortLocal? portForward = null;
-
+        IDisposable? tunnelLease = null;
         try
         {
-            var host = conn.ServerHost;
-            int port = conn.ServerPort;
-
-            if (conn.IsTunnelRequired && tunnel is not null)
+            if (conn.DbType == DatabaseType.Sqlite)
             {
-                AuthenticationMethod auth;
-                if (tunnel.UsePasswordAuth)
-                {
-                    var decryptedPassword = cryptoService.Decrypt(tunnel.Password);
-                    auth = new PasswordAuthenticationMethod(tunnel.Username, decryptedPassword);
-                }
-                else
-                {
-                    var decryptedPem = cryptoService.Decrypt(tunnel.PrivateKeyContent);
-                    var decryptedPemPassphrase = cryptoService.Decrypt(tunnel.PrivateKeyPassphrase);
-
-                    using var keyStream = new MemoryStream(Encoding.UTF8.GetBytes(decryptedPem ?? ""));
-                    auth = !string.IsNullOrEmpty(decryptedPemPassphrase)
-                        ? new PrivateKeyAuthenticationMethod(
-                            tunnel.Username,
-                            new PrivateKeyFile(keyStream, decryptedPemPassphrase))
-                        : new PrivateKeyAuthenticationMethod(
-                            tunnel.Username,
-                            new PrivateKeyFile(keyStream));
-                }
-
-                var connectionInfo = new ConnectionInfo(
-                    tunnel.ServerHost,
-                    tunnel.SshPort,
-                    tunnel.Username,
-                    auth);
-
-                sshClient = new SshClient(connectionInfo);
-                SshHostKeys.Configure(sshClient, tunnel.ServerHost);
-                sshClient.Connect();
-
-                portForward = new ForwardedPortLocal("127.0.0.1",
-                    (uint)tunnel.LocalPort,
-                    tunnel.RemoteHost,
-                    (uint)tunnel.RemotePort);
-                sshClient.AddForwardedPort(portForward);
-                portForward.Start();
-
-                host = "127.0.0.1";
-                port = tunnel.LocalPort;
+                var path = Modules.Backup.Application.Services.SqliteBackup.Source(configuration, conn.DbName, conn.IsTunnelRequired);
+                await using var sqlite = new Microsoft.Data.Sqlite.SqliteConnection(new Microsoft.Data.Sqlite.SqliteConnectionStringBuilder { DataSource = path, Mode = Microsoft.Data.Sqlite.SqliteOpenMode.ReadOnly, Pooling = false }.ToString());
+                await sqlite.OpenAsync();
+                await using var command = sqlite.CreateCommand();
+                command.CommandText = "SELECT count(*) FROM sqlite_schema";
+                await command.ExecuteScalarAsync();
+                return (true, null);
             }
+            // Match the export path, including disposal of the private-key stream.
+            if (conn.IsTunnelRequired && tunnel is null) return (false, "The configured SSH tunnel is missing.");
+            tunnelLease = conn.IsTunnelRequired ? SshTunnelHelper.OpenTunnel(conn, tunnel!, cryptoService) : null;
+            var host = conn.IsTunnelRequired ? "127.0.0.1" : conn.ServerHost;
+            var port = conn.IsTunnelRequired ? tunnel!.LocalPort : conn.ServerPort;
 
             var decryptedDbPasswd = cryptoService.Decrypt(conn.DbPasswd);
 
@@ -99,6 +64,7 @@ internal static class ServerConnectionTester
                         Timeout = 5,
                         CommandTimeout = 5,
                         SslMode = conn.SsL ? SslMode.VerifyFull : SslMode.Disable,
+                        GssEncryptionMode = GssEncryptionMode.Disable,
                     }.ToString()),
 
                 DatabaseType.SqlServer => new SqlConnection(
@@ -121,19 +87,8 @@ internal static class ServerConnectionTester
             var isOk = await ExecuteTestQueryAsync(dbConn, conn.DbType);
             return (isOk, null);
         }
-        catch (Exception)
-        {
-            var errorMsg = "Connection failed. Verify credentials, certificates, host-key pins and server logs.";
-            Console.WriteLine(errorMsg);
-            return (false, errorMsg);
-        }
-        finally
-        {
-            portForward?.Stop();
-            if (sshClient?.IsConnected == true)
-                sshClient.Disconnect();
-            sshClient?.Dispose();
-        }
+        catch (Exception error) { return (false, DatabaseConnectionErrors.Describe(error)); }
+        finally { tunnelLease?.Dispose(); }
     }
 
     private static async Task OpenAsync(IDbConnection conn)

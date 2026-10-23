@@ -38,7 +38,7 @@ it.each(["null", ""])(
   async (body) => {
     const errors = vi.spyOn(console, "error").mockImplementation(() => {});
     const fetch = vi.fn(async (url: string) => {
-      if (url.endsWith("RestoreAvailability"))
+      if (url.includes("RestoreAvailability"))
         return new Response(JSON.stringify({ enabled: true }));
       if (url.includes("RestoreReport"))
         return new Response(body, { status: 200 });
@@ -61,9 +61,7 @@ it.each(["null", ""])(
     expect(
       await screen.findByRole("heading", { name: "No restore test recorded" }),
     ).toBeVisible();
-    await userEvent.click(
-      screen.getByRole("button", { name: "Test backup" }),
-    );
+    await userEvent.click(screen.getByRole("button", { name: "Test backup" }));
     expect(
       await screen.findByText(
         "The configured database image is not preloaded.",
@@ -85,7 +83,7 @@ it("explains a disabled deployment and leaves saved failure reports visible", as
       async (url: string) =>
         new Response(
           JSON.stringify(
-            url.endsWith("RestoreAvailability")
+            url.includes("RestoreAvailability")
               ? { enabled: false }
               : {
                   id: "test-1",
@@ -111,7 +109,5 @@ it("explains a disabled deployment and leaves saved failure reports visible", as
       /An administrator must enable RestoreTests:Enabled/,
     ),
   ).toBeVisible();
-  expect(
-    screen.getByRole("button", { name: "Test backup" }),
-  ).toBeDisabled();
+  expect(screen.getByRole("button", { name: "Test backup" })).toBeDisabled();
 });

@@ -17,6 +17,10 @@ namespace Modules.Backup.Application.Services;
 // No host mounts, network, published ports, interactive SQL or source credentials.
 public sealed class DockerRestoreTestRunner(IConfiguration config, IRestoreContainerCommands commands) : IRestoreTestRunner
 {
+    // Freeze the selected images/resources for this scoped operation. The next
+    // worker scope sees reloaded configuration; in-flight restores stay coherent.
+    private readonly IConfiguration runtime = new ConfigurationBuilder().AddInMemoryCollection(
+        config.GetSection("RestoreTests").AsEnumerable()).Build();
     private string Instance => Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(Path.GetFullPath(DbCommon.BackupDirectory))))[..16].ToLowerInvariant();
     private string Label => "octobackup.restore-instance=" + Instance;
     private string Name(Guid id) => $"octobackup-restore-{Instance}-{id:N}";
@@ -35,7 +39,7 @@ public sealed class DockerRestoreTestRunner(IConfiguration config, IRestoreConta
         var phase = "Checking archive compatibility";
         try
         {
-            var profile = await RestoreArchiveProfile.Read(test, artifactPath, config, token);
+            var profile = await RestoreArchiveProfile.Read(test, artifactPath, runtime, token);
             var type = test.DatabaseType;
             if (!Enum.IsDefined(type)) throw new RestoreTestException("Unsupported database type.");
             var password = "Ob!" + Convert.ToHexString(RandomNumberGenerator.GetBytes(24));
@@ -43,14 +47,18 @@ public sealed class DockerRestoreTestRunner(IConfiguration config, IRestoreConta
                 ["MSSQL_SA_PASSWORD"] = password, ["PGPASSWORD"] = password, ["MYSQL_PWD"] = password, ["SQLCMDPASSWORD"] = password };
             var image = profile.Image;
             if (string.IsNullOrWhiteSpace(image) || image.StartsWith('-')) throw new RestoreTestException("Invalid deployment restore image.");
-            var dataGiB = Math.Clamp(config.GetValue("RestoreTests:DataGiB", 4), 1, 64);
-            var memoryMiB = Math.Clamp(config.GetValue("RestoreTests:MemoryMiB", 4096), 2048, 65536);
+            var dataGiB = Math.Clamp(runtime.GetValue("RestoreTests:DataGiB", 4), 1, 64);
+            var memoryMiB = Math.Clamp(runtime.GetValue("RestoreTests:MemoryMiB", 4096), 2048, 65536);
             var data = type switch { DatabaseType.MySql => "/var/lib/mysql", DatabaseType.PostgreSql => "/var/lib/postgresql", _ => "/var/opt/mssql" };
             var args = new List<string> { "run", "--detach", "--pull=never", "--name", Name(test.Id), "--label", Label,
                 "--network=none", "--read-only", "--cap-drop=ALL", "--security-opt=no-new-privileges:true",
                 "--memory=" + memoryMiB + "m", "--memory-swap=" + memoryMiB + "m", "--cpus=2", "--pids-limit=256",
                 "--log-driver=none", "--tmpfs", "/tmp:rw,nosuid,nodev,size=256m", "--tmpfs", "/run:rw,nosuid,nodev,size=16m",
                 "--tmpfs", data + ":rw,nosuid,nodev,size=" + dataGiB + "g" + (type == DatabaseType.SqlServer ? ",uid=10001,gid=0" : "") };
+            // The official sqlservr binary declares cap_net_bind_service=ep.
+            // Excluding it from the bounding set makes exec fail with EPERM.
+            // Keep this single capability inside the networkless SQL container.
+            if (type == DatabaseType.SqlServer) args.Add("--cap-add=NET_BIND_SERVICE");
             if (type != DatabaseType.SqlServer)
                 args.AddRange(["--cap-add=CHOWN", "--cap-add=SETUID", "--cap-add=SETGID", "--cap-add=DAC_OVERRIDE", "--cap-add=FOWNER"]);
             // Cover the pre-18 image's declared VOLUME as well, without leaving an
@@ -104,8 +112,12 @@ public sealed class DockerRestoreTestRunner(IConfiguration config, IRestoreConta
             {
                 if (!Path.GetExtension(artifactPath).Equals(".bak", StringComparison.OrdinalIgnoreCase))
                     throw new RestoreTestException("SQL Server verification requires a native .bak artifact.");
-                await Docker(["cp", artifactPath, Name(test.Id) + ":/var/opt/mssql/probe.bak"], env, null, token);
-                await Docker(["exec", "--user=0", Name(test.Id), "chmod", "0644", "/var/opt/mssql/probe.bak"], env, null, token);
+                // docker cp is rejected for read-only containers on some daemons,
+                // including writes targeting tmpfs. Stream into the writable data
+                // mount as the normal mssql user; fixed command/path, private mode.
+                var maximum = Math.Clamp(runtime.GetValue("RestoreTests:MaxArchiveGiB", 10), 1, 100) * 1024L * 1024 * 1024;
+                await using (var native = new BoundedArchiveStream(new FileStream(artifactPath, FileMode.Open, FileAccess.Read, FileShare.Read | FileShare.Delete), maximum))
+                    await Docker(["exec", "-i", Name(test.Id), "/bin/sh", "-c", "umask 077; cat > /var/opt/mssql/probe.bak"], env, native, token);
                 var listing = await Query(test, profile, "RESTORE FILELISTONLY FROM DISK=N'/var/opt/mssql/probe.bak'", env, token, master: true);
                 var moves = new List<string>();
                 foreach (var line in listing.Split('\n', StringSplitOptions.RemoveEmptyEntries))
@@ -123,7 +135,7 @@ public sealed class DockerRestoreTestRunner(IConfiguration config, IRestoreConta
                 // Stream the only SQL entry; never extract archive paths onto the host.
                 using var zip = ZipFile.OpenRead(artifactPath);
                 var entries = zip.Entries.Where(e => !string.IsNullOrEmpty(e.Name)).ToArray();
-                var maxBytes = Math.Clamp(config.GetValue("RestoreTests:MaxArchiveGiB", 10), 1, 100) * 1024L * 1024 * 1024;
+                var maxBytes = Math.Clamp(runtime.GetValue("RestoreTests:MaxArchiveGiB", 10), 1, 100) * 1024L * 1024 * 1024;
                 if (entries.Length != 1 || !entries[0].Name.EndsWith(".sql", StringComparison.OrdinalIgnoreCase) || entries[0].Length > maxBytes)
                     throw new RestoreTestException("Expected one SQL file within the configured archive size limit.");
                 await using var sql = new BoundedArchiveStream(entries[0].Open(), maxBytes);
@@ -148,11 +160,11 @@ public sealed class DockerRestoreTestRunner(IConfiguration config, IRestoreConta
         args.AddRange(test.DatabaseType switch {
             DatabaseType.MySql => new[] { profile.MariaDb ? "mariadb" : "mysql", "--protocol=TCP", "--host=127.0.0.1", "--user=root", "--batch", "--raw", "--skip-column-names", "--default-character-set=utf8mb4", "--database=" + database },
             DatabaseType.PostgreSql => new[] { "psql", "--host=127.0.0.1", "--username=postgres", "--no-password", "--no-psqlrc", "--quiet", "--tuples-only", "--no-align", "--set=ON_ERROR_STOP=1", "--dbname=" + database },
-            _ => new[] { "/opt/mssql-tools18/bin/sqlcmd", "-S", "localhost", "-U", "sa", "-C", "-b", "-r", "1", "-h", "-1", "-W", "-s", "|", "-w", "65535", "-y", "0", "-d", database } });
+            _ => new[] { "/opt/mssql-tools18/bin/sqlcmd", "-S", "tcp:127.0.0.1,1433", "-l", "5", "-U", "sa", "-C", "-b", "-r", "1", "-s", "|", "-w", "65535", "-y", "0", "-d", database } });
         if (profile.MariaDb) args.Add("--skip-ssl"); // Loopback inside a networkless sandbox.
         if (test.DatabaseType == DatabaseType.MySql) args.Add("--binary-mode");
-        // sqlcmd -W and -y are incompatible; retain untruncated JSON output.
-        if (test.DatabaseType == DatabaseType.SqlServer) args.Remove("-W");
+        // sqlcmd -y 0 already suppresses headers and preserves full JSON.
+        // Both -W and -h conflict with -y 0; do not combine them.
         if (query is not null) args.AddRange([test.DatabaseType == DatabaseType.MySql ? "--execute" : test.DatabaseType == DatabaseType.PostgreSql ? "--command" : "-Q", query]);
         return args;
     }
@@ -232,7 +244,6 @@ public sealed class DockerRestoreTestRunner(IConfiguration config, IRestoreConta
 
     public async Task Cleanup(Guid testId, CancellationToken token)
     {
-        if (!config.GetValue("RestoreTests:Enabled", false)) return;
         // rm is idempotent after confirming whether this exact generated name exists.
         var found = await Docker(["ps", "-aq", "--filter", "label=" + Label, "--filter", "name=^/" + Name(testId) + "$"], null, null, token);
         if (!string.IsNullOrWhiteSpace(found)) await Docker(["rm", "--force", "--volumes", Name(testId)], null, null, token);
@@ -240,7 +251,7 @@ public sealed class DockerRestoreTestRunner(IConfiguration config, IRestoreConta
 
     public async Task CleanupOrphans(CancellationToken token)
     {
-        if (!config.GetValue("RestoreTests:Enabled", false)) return;
+        if (!runtime.GetValue("RestoreTests:Enabled", false)) return;
         using var deadline = CancellationTokenSource.CreateLinkedTokenSource(token);
         deadline.CancelAfter(TimeSpan.FromSeconds(30));
         token = deadline.Token;

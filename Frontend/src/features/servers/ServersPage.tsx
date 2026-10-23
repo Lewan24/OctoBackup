@@ -1,3 +1,4 @@
+import { BackupEncryptionEditor } from "../../shared/BackupEncryptionEditor";
 import { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Plus, Search, Play, Cable, Pencil, Power, Trash2 } from "lucide-react";
@@ -24,6 +25,7 @@ export function ServersPage({ admin }: { admin: boolean }) {
     params.has("new") && admin ? "new" : null,
   );
   const [search, setSearch] = useState("");
+  const [encryption, setEncryption] = useState<Server | null>(null);
   const [access, setAccess] = useState<Server | null>(null);
   const [notice, setNotice] = useState("");
   const [error, setError] = useState<unknown>();
@@ -108,6 +110,14 @@ export function ServersPage({ admin }: { admin: boolean }) {
           />
         </section>
       )}
+      {encryption && (
+        <BackupEncryptionEditor
+          key={encryption.id}
+          serverId={encryption.id}
+          admin={admin}
+          onClose={() => setEncryption(null)}
+        />
+      )}
       {access && (
         <AccessPanel server={access} onClose={() => setAccess(null)} />
       )}
@@ -169,7 +179,11 @@ export function ServersPage({ admin }: { admin: boolean }) {
                 <div>
                   <dt>Transport</dt>
                   <dd>
-                    {s.ssL ? "TLS requested" : "TLS disabled"}
+                    {s.dbType === 3
+                      ? "Mounted SQLite file"
+                      : s.ssL
+                        ? "TLS requested"
+                        : "TLS disabled"}
                     {s.isTunnelRequired ? " · SSH tunnel" : ""}
                   </dd>
                 </div>
@@ -222,6 +236,14 @@ export function ServersPage({ admin }: { admin: boolean }) {
                   </button>
                 )}
               </div>
+              <button
+                type="button"
+                className="text-button"
+                disabled={!admin && s.isDisabled}
+                onClick={() => setEncryption(s)}
+              >
+                Backup encryption
+              </button>
               {admin && (
                 <div className="server-admin">
                   <button className="text-button" onClick={() => setAccess(s)}>

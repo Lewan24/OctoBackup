@@ -18,7 +18,7 @@ public sealed class BackupQueueException(int statusCode, string message) : Excep
 }
 
 public sealed class BackupQueueService(BackupsDbContext db, IApplicationSettings settings, TimeProvider clock,
-    BackupQueueCoordinator coordinator, NotifyService notify, ILogger<BackupQueueService> logger)
+    BackupQueueCoordinator coordinator, Microsoft.Extensions.Configuration.IConfiguration configuration, NotifyService notify, ILogger<BackupQueueService> logger)
 {
     public const int MaxActiveRequests = 1000;
 
@@ -169,7 +169,9 @@ public sealed class BackupQueueService(BackupsDbContext db, IApplicationSettings
         var server = await db.DbConnections.AsNoTracking().FirstOrDefaultAsync(s => s.Id == id, token);
         if (server is null || server.IsDisabled) throw new BackupQueueException(400, "The server is disabled or no longer available.");
         var tunnel = server.IsTunnelRequired ? await db.DbServerTunnels.AsNoTracking().FirstOrDefaultAsync(t => t.Id == server.TunnelId, token) : null;
-        if (!DatabaseHostPolicy.AllowsConnection(settings.Current, server.ServerHost, server.IsTunnelRequired, tunnel?.ServerHost, tunnel?.RemoteHost))
+        if (server.DbType == Modules.Backup.Shared.Enums.DatabaseType.Sqlite)
+            _ = SqliteBackup.Source(configuration, server.DbName, server.IsTunnelRequired);
+        else if (!DatabaseHostPolicy.AllowsConnection(settings.Current, server.ServerHost, server.IsTunnelRequired, tunnel?.ServerHost, tunnel?.RemoteHost))
             throw new BackupQueueException(400, DatabaseHostPolicy.DeniedMessage);
         return (server, tunnel);
     }

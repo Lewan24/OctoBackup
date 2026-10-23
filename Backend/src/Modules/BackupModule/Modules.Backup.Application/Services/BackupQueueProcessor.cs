@@ -75,7 +75,7 @@ public sealed class BackupQueueProcessor(BackupsDbContext db, BackupQueueService
                     var server = sourceSnapshot;
                     var backup = new PerformedBackup { Id = artifact.Id, ServerConnectionId = request.ServerId,
                         Name = artifact.Name, CreatedOn = clock.GetLocalNow().DateTime, FilePath = artifact.FilePath,
-                        DatabaseType = server.DbType, DatabaseName = server.DbName };
+                        DatabaseType = server.DbType, DatabaseName = server.DbName, EncryptionKeyId = artifact.EncryptionKeyId };
                     db.Backups.Add(backup);
                     if (settings.Current.AutomaticRestoreTests)
                         db.BackupsTests.Add(RestoreTestService.Create(backup, server, null, true));

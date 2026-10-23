@@ -6,6 +6,7 @@ using Modules.Backup.Shared.Dtos;
 using Modules.Backup.Shared.Requests;
 using Modules.Shared.Attributes;
 using OneOf;
+using OneOf.Types;
 using Modules.Backup.Api.Security;
 
 namespace Modules.Backup.Api.Servers;
@@ -104,7 +105,9 @@ internal abstract class ServersOperations
         [FromServices] ServersService service,
         [FromBody] ServerConnectionDto newServer)
     {
-        var result = await service.CreateServer(newServer, context.User.Identity?.Name);
+        OneOf<Success, string> result;
+        try { result = await service.CreateServer(newServer, context.User.Identity?.Name); }
+        catch (BackupQueueException error) { return Results.Problem(statusCode: error.StatusCode, title: error.Message); }
 
         return result.Match<IResult>(
             _ => TypedResults.Created(),
@@ -117,7 +120,8 @@ internal abstract class ServersOperations
         [FromServices] ServersService service,
         [FromBody] ServerConnectionDto server)
     {
-        return await CallFuncAndReturnIResult(service.EditServer, server);
+        try { return await CallFuncAndReturnIResult(service.EditServer, server); }
+        catch (BackupQueueException error) { return Results.Problem(statusCode: error.StatusCode, title: error.Message); }
     }
 
     public static async Task<IResult> ToggleServerDisabledStatus(

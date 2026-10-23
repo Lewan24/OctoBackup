@@ -34,6 +34,59 @@ namespace Modules.Backup.Infrastructure.DbContexts.Migrations
                     b.ToTable("AutomaticBackupTestConfigs");
                 });
 
+            modelBuilder.Entity("Modules.Backup.Core.Entities.DbContext.BackupEncryptionKey", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("ActiveScope")
+                        .HasColumnType("TEXT");
+
+                    b.Property<long>("CreatedAt")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("ProtectedKey")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("ProtectedRecoveryPassword")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Salt")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Scope")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ActiveScope")
+                        .IsUnique();
+
+                    b.ToTable("BackupEncryptionKeys");
+                });
+
+            modelBuilder.Entity("Modules.Backup.Core.Entities.DbContext.BackupEncryptionPolicy", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<bool>("GlobalEnabled")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Revision")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("BackupEncryptionPolicies");
+                });
+
             modelBuilder.Entity("Modules.Backup.Core.Entities.DbContext.BackupRequest", b =>
                 {
                     b.Property<Guid>("Id")
@@ -309,6 +362,9 @@ namespace Modules.Backup.Infrastructure.DbContexts.Migrations
 
                     b.Property<int?>("DatabaseType")
                         .HasColumnType("INTEGER");
+
+                    b.Property<Guid?>("EncryptionKeyId")
+                        .HasColumnType("TEXT");
 
                     b.Property<string>("FilePath")
                         .IsRequired()

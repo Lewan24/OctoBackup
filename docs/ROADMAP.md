@@ -13,7 +13,7 @@ Durable restore tests support automatic opt-in and manual saved data previews in
 isolated, bounded Docker containers. Live real-export/restore checks passed for
 MySQL 5.7/8.4, MariaDB 10.11 and PostgreSQL 16/17/18, including populated/empty tables,
 Unicode, binary samples, hex exports and early invalid SQL rejection. Native
-SQL Server and broader version/schema matrices still require live validation.
+SQL Server 2022 now has a synthetic native export/encryption/restore check; broader version/schema matrices still require live validation.
 Authentication and security controls are detailed in SECURITY.md. Test evidence is
 recorded in MIGRATION.md; distinguish code support from live-provider verification.
 
@@ -30,9 +30,9 @@ recorded in MIGRATION.md; distinguish code support from live-provider verificati
 1. Move restore execution into a separately deployed worker with no daemon access
    in the web host. The current opt-in runner requires trusted dedicated Docker
    access from the API process. Validate real engine/version/extension matrices,
-   native SQL Server backups and large schemas; add source manifests/checksums.
+   additional native SQL Server versions/layouts and large schemas; add source manifests/checksums.
 2. Offline credential rekey utility and migration of all legacy CBC ciphertext.
-   Add optional backup encryption, checksum/provenance and audited restore/download.
+   Add checksum/provenance, historical backup re-encryption/revocation and external key wrapping. Optional global/individual backup encryption and versioned key changes are implemented; see BACKUP_ENCRYPTION.md.
 3. Verified email change, password recovery, MFA and account invitation lifecycle.
    Integrate the retained SMTP helpers into explicit runtime workflows and tests.
 4. Server-side backup-history filtering/paging,
@@ -46,3 +46,10 @@ recorded in MIGRATION.md; distinguish code support from live-provider verificati
 Do not mark these complete without implementation and verification. Do not restore
 the retired anonymous container prototype, fake-success endpoints or custom browser
 token scheme to make a planned feature look finished.
+
+Opt-in global encryption, independent individual passwords in server create/edit,
+versioned keys, password-confirmed downloads,
+administrator resets and mounted SQLite online snapshots are implemented. Further
+work: remote SQLite snapshot transport, SQL Server SFTP/object-storage retrieval,
+large-download streaming in browsers, separate-process SQLite validation, and
+broader native SQL Server versions, layouts and production-scale restore verification.

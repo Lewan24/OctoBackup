@@ -20,5 +20,9 @@ public record ServerConnectionDto
     public bool IsTunnelRequired { get; set; }
 
     public ServerTunnelDto? Tunnel { get; set; }
+    public ServerEncryptionOptions? Encryption { get; set; }
     public Guid AutoTestBackupsConfigId { get; set; }
 }
+
+public sealed record ServerEncryptionOptions(string Mode, string? Password, string? ConfirmPassword,
+    string? CurrentPassword = null, Guid? ExpectedKeyId = null);
