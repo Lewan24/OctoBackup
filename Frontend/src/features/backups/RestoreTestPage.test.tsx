@@ -62,6 +62,9 @@ it.each(["null", ""])(
       await screen.findByRole("heading", { name: "No restore test recorded" }),
     ).toBeVisible();
     await userEvent.click(screen.getByRole("button", { name: "Test backup" }));
+    await userEvent.click(
+      screen.getByRole("button", { name: "Queue restore test" }),
+    );
     expect(
       await screen.findByText(
         "The configured database image is not preloaded.",

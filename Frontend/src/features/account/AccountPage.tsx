@@ -1,7 +1,8 @@
 import { useState } from "react";
 import { api, resetCsrf } from "../../shared/api";
-import { PageHeading, Field, SubmitForm } from "../../shared/ui";
+import { Dialog, PageHeading, Field, SubmitForm } from "../../shared/ui";
 export function AccountPage() {
+  const [editing, setEditing] = useState<"password" | "email" | null>(null);
   const [message, setMessage] = useState("");
   return (
     <>
@@ -15,14 +16,36 @@ export function AccountPage() {
         </p>
       )}
       <div className="settings-grid">
-        <section className="panel editor">
-          <h2>Change password</h2>
+        <section className="panel action-card">
+          <h2>Password & security</h2>
+          <p>
+            Choose a strong password to protect your account. Updating it signs
+            out existing sessions.
+          </p>
+          <button onClick={() => setEditing("password")}>
+            Change password
+          </button>
+        </section>
+        <section className="panel action-card">
+          <h2>Email address</h2>
+          <p>
+            Update your sign-in address. Your current password is required to
+            confirm the change.
+          </p>
+          <button className="secondary" onClick={() => setEditing("email")}>
+            Change email
+          </button>
+        </section>
+      </div>
+      {editing === "password" && (
+        <Dialog title="Change password" onClose={() => setEditing(null)}>
           <p>
             Use at least 12 characters, including uppercase, lowercase, a
             number, and a symbol.
           </p>
           <SubmitForm
             label="Update password"
+            onCancel={() => setEditing(null)}
             onSubmit={async (d) => {
               if (d.get("password") !== d.get("confirm"))
                 throw new Error("Passwords do not match.");
@@ -67,12 +90,14 @@ export function AccountPage() {
               sessions.
             </p>
           </SubmitForm>
-        </section>
-        <section className="panel editor">
-          <h2>Change email</h2>
+        </Dialog>
+      )}
+      {editing === "email" && (
+        <Dialog title="Change email" onClose={() => setEditing(null)}>
           <p>Your email is also your sign-in username.</p>
           <SubmitForm
             label="Update email"
+            onCancel={() => setEditing(null)}
             onSubmit={async (d) => {
               await api("auth/ChangeEmail", {
                 newEmail: d.get("email"),
@@ -110,8 +135,8 @@ export function AccountPage() {
               />
             </Field>
           </SubmitForm>
-        </section>
-      </div>
+        </Dialog>
+      )}
     </>
   );
 }

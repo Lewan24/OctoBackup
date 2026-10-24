@@ -3,6 +3,7 @@ import { test, expect } from "@playwright/test";
 test("sign in, manage a connection and schedule, inspect history, and sign out", async ({
   page,
 }, testInfo) => {
+  test.setTimeout(60_000);
   const errors: string[] = [];
   page.on("console", (message) => {
     if (/violates.*Content Security Policy/.test(message.text()))
@@ -33,6 +34,9 @@ test("sign in, manage a connection and schedule, inspect history, and sign out",
   await expect(
     page.getByRole("heading", { name: "Application settings", exact: true }),
   ).toBeVisible();
+  await page
+    .getByRole("button", { name: "Manage backup encryption", exact: true })
+    .click();
   const encryption = page.getByRole("heading", {
     name: "Global backup encryption",
   });
@@ -59,6 +63,8 @@ test("sign in, manage a connection and schedule, inspect history, and sign out",
   await expect(
     page.getByText("New backups are not encrypted.", { exact: true }),
   ).toBeVisible();
+  await page.getByRole("button", { name: "Close dialog" }).click();
+  await page.getByRole("button", { name: "Edit workspace policies" }).click();
   const approvedHost = `db.${testInfo.project.name}.internal`;
   const hosts = page.getByLabel("Allowed database hosts");
   const existingHosts = await hosts.inputValue();
@@ -80,6 +86,7 @@ test("sign in, manage a connection and schedule, inspect history, and sign out",
     page.getByRole("status").filter({ hasText: /^Settings saved\./ }),
   ).toBeVisible();
   await page.reload();
+  await page.getByRole("button", { name: "Edit workspace policies" }).click();
   await expect(hosts).toHaveValue(
     new RegExp(approvedHost.replace(/\./g, "\\.")),
   );
@@ -110,6 +117,15 @@ test("sign in, manage a connection and schedule, inspect history, and sign out",
   await page
     .getByRole("link", { name: "Connect a server", exact: true })
     .click();
+
+  await page
+    .getByRole("button", { name: "Connect a server", exact: true })
+    .click();
+  await expect(
+    page.getByRole("dialog", { name: "Connect a database" }),
+  ).toBeVisible();
+  await page.keyboard.press("Escape");
+  await expect(page.getByRole("dialog")).toHaveCount(0);
   await page
     .getByRole("button", { name: "Connect a server", exact: true })
     .click();
@@ -185,6 +201,10 @@ test("sign in, manage a connection and schedule, inspect history, and sign out",
     fullPage: true,
   });
   await card.getByRole("button", { name: "Queue backup", exact: true }).click();
+  await page
+    .getByRole("dialog")
+    .getByRole("button", { name: "Queue backup", exact: true })
+    .click();
   await expect(
     card.getByRole("button", { name: "In queue", exact: true }),
   ).toBeDisabled();
@@ -203,9 +223,17 @@ test("sign in, manage a connection and schedule, inspect history, and sign out",
   await page
     .getByRole("button", { name: `Cancel backup for ${name}`, exact: true })
     .click();
+  await page
+    .getByRole("dialog")
+    .getByRole("button", { name: "Cancel backup", exact: true })
+    .click();
   await expect(queuedRow.getByText("Cancelled", { exact: true })).toBeVisible();
   await page
     .getByRole("button", { name: `Remove request for ${name}`, exact: true })
+    .click();
+  await page
+    .getByRole("dialog")
+    .getByRole("button", { name: "Remove request", exact: true })
     .click();
   await expect(
     page.getByRole("heading", { name: "No queue requests" }),
@@ -312,6 +340,9 @@ test("sign in, manage a connection and schedule, inspect history, and sign out",
     page.getByRole("heading", { name: "No restore test recorded" }),
   ).toBeVisible();
   await page.getByRole("button", { name: "Test backup", exact: true }).click();
+  await page
+    .getByRole("button", { name: "Queue restore test", exact: true })
+    .click();
   await expect(page.getByText("2 user tables restored")).toBeVisible();
   await expect(
     page.getByRole("cell", { name: "<script>sample</script>", exact: true }),

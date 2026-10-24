@@ -1,12 +1,7 @@
+import logo from "../../media/OctoBackupLogo.png";
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import {
-  Database,
-  ArrowUpRight,
-  ShieldCheck,
-  CalendarClock,
-  Layers,
-} from "lucide-react";
+import { ArrowUpRight, ShieldCheck, CalendarClock, Layers } from "lucide-react";
 import { api, resetCsrf } from "../../shared/api";
 import { Field, SubmitForm } from "../../shared/ui";
 export function AuthPage({ onLogin }: { onLogin: () => Promise<unknown> }) {
@@ -23,8 +18,7 @@ export function AuthPage({ onLogin }: { onLogin: () => Promise<unknown> }) {
     <main className="auth-layout">
       <section className="auth-story">
         <a className="brand" href="/">
-          <Database /> OctoBackup
-          <span className="brand-dot" />
+          <img className="auth-logo" src={logo} alt="" /> OctoBackup
         </a>
         <div>
           <h1>

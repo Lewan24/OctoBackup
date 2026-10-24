@@ -8,6 +8,7 @@ import {
 } from "../../shared/restoreTesting";
 import { date } from "../../shared/types";
 import {
+  ConfirmDialog,
   Empty,
   ErrorMessage,
   Loading,
@@ -48,6 +49,7 @@ export function RestoreTestPage() {
   const { id } = useParams();
   const client = useQueryClient();
   const availability = useRestoreAvailability(id);
+  const [confirming, setConfirming] = useState(false);
   const [selected, setSelected] = useState(0);
   const key = ["restore-report", id];
   const report = useQuery({
@@ -81,6 +83,21 @@ export function RestoreTestPage() {
         title="Restore test"
         description="Restore an archived backup in a disposable database and inspect the saved sample."
       />
+      {confirming && (
+        <ConfirmDialog
+          title="Test archived backup"
+          label="Queue restore test"
+          onClose={() => setConfirming(false)}
+          onConfirm={() => test.mutateAsync()}
+        >
+          <p>Backup reference: {id}</p>
+          <p>
+            Restore this archive into a disposable database and save bounded
+            table samples. The saved preview may contain sensitive backup data.
+            This does not change the source database.
+          </p>
+        </ConfirmDialog>
+      )}
       <div className="toolbar">
         <Link className="button secondary" to="/backups">
           Back to backup history
@@ -93,7 +110,7 @@ export function RestoreTestPage() {
             test.isPending ||
             availability.data?.enabled !== true
           }
-          onClick={() => test.mutate()}
+          onClick={() => setConfirming(true)}
         >
           {test.isPending
             ? "Queuing test…"

@@ -4,6 +4,8 @@ import { Plus, Pencil } from "lucide-react";
 import { api } from "../../shared/api";
 import type { User } from "../../shared/types";
 import {
+  Dialog,
+  ConfirmDialog,
   Empty,
   ErrorMessage,
   Loading,
@@ -15,8 +17,11 @@ import {
 export function UsersPage() {
   const client = useQueryClient();
   const [edit, setEdit] = useState<User | "new" | null>(null);
-  const [error, setError] = useState<unknown>();
-  const [busy, setBusy] = useState(false);
+  const [confirmation, setConfirmation] = useState<{
+    user: User;
+    path: string;
+    label: string;
+  } | null>(null);
   const query = useQuery({
     queryKey: ["users"],
     queryFn: () => api<User[]>("administration/GetUsers"),
@@ -33,10 +38,35 @@ export function UsersPage() {
           </button>
         }
       />
-      <ErrorMessage error={error} />
+      {confirmation && (
+        <ConfirmDialog
+          title={confirmation.label}
+          label={confirmation.label}
+          onClose={() => setConfirmation(null)}
+          onConfirm={async () => {
+            await api(confirmation.path, confirmation.user.id);
+            await client.invalidateQueries();
+          }}
+        >
+          <p>
+            <strong>{confirmation.user.email}</strong>
+          </p>
+          <p>
+            {confirmation.path.includes("ConfirmUser")
+              ? "Confirm this account so the operator can sign in. Server assignments are managed separately."
+              : confirmation.user.isBlocked
+                ? "Allow this operator to sign in again."
+                : "Block this operator from signing in and using assigned resources."}
+          </p>
+        </ConfirmDialog>
+      )}
       {edit && (
-        <section className="panel editor">
-          <h2>{edit === "new" ? "Create an operator account" : "Edit user"}</h2>
+        <Dialog
+          title={
+            edit === "new" ? "Create an operator account" : `Edit ${edit.email}`
+          }
+          onClose={() => setEdit(null)}
+        >
           <SubmitForm
             onCancel={() => setEdit(null)}
             label={edit === "new" ? "Create user" : "Save user"}
@@ -100,7 +130,7 @@ export function UsersPage() {
               creating them.
             </p>
           </SubmitForm>
-        </section>
+        </Dialog>
       )}
       {query.isPending ? (
         <Loading />
@@ -148,22 +178,15 @@ export function UsersPage() {
                         {!u.roles.includes("Admin") && (
                           <button
                             className="secondary small"
-                            disabled={busy}
-                            onClick={async () => {
-                              setBusy(true);
-                              setError(undefined);
-                              try {
-                                await api(
-                                  "administration/ToggleUserBlockade",
-                                  u.id,
-                                );
-                                await client.invalidateQueries();
-                              } catch (e) {
-                                setError(e);
-                              } finally {
-                                setBusy(false);
-                              }
-                            }}
+                            onClick={() =>
+                              setConfirmation({
+                                user: u,
+                                path: "administration/ToggleUserBlockade",
+                                label: u.isBlocked
+                                  ? "Unblock user"
+                                  : "Block user",
+                              })
+                            }
                           >
                             {u.isBlocked ? "Unblock" : "Block"}
                           </button>
@@ -171,19 +194,13 @@ export function UsersPage() {
                         {!u.isEmailConfirmed && (
                           <button
                             className="secondary small"
-                            disabled={busy}
-                            onClick={async () => {
-                              setBusy(true);
-                              setError(undefined);
-                              try {
-                                await api("administration/ConfirmUser", u.id);
-                                await client.invalidateQueries();
-                              } catch (e) {
-                                setError(e);
-                              } finally {
-                                setBusy(false);
-                              }
-                            }}
+                            onClick={() =>
+                              setConfirmation({
+                                user: u,
+                                path: "administration/ConfirmUser",
+                                label: "Confirm account",
+                              })
+                            }
                           >
                             Confirm account
                           </button>

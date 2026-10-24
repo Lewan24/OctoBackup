@@ -1,12 +1,25 @@
-import { useState } from "react";
+import { useId, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { restoreStatuses } from "./RestoreTestPage";
 import { useQuery } from "@tanstack/react-query";
-import { Download, Search, Archive } from "lucide-react";
+import {
+  Download,
+  Search,
+  Archive,
+  ChevronDown,
+  ShieldCheck,
+  ShieldX,
+  Clock3,
+  CircleHelp,
+  FlaskConical,
+  LockKeyhole,
+  UnlockKeyhole,
+} from "lucide-react";
 import { api, downloadDecryptedBackup } from "../../shared/api";
 import type { Backup } from "../../shared/types";
 import { date } from "../../shared/types";
 import {
+  Dialog,
   Empty,
   ErrorMessage,
   Loading,
@@ -45,8 +58,10 @@ export function BackupsPage() {
         description="Find a copy, see when it was created, and download it securely."
       />
       {decrypting && (
-        <section className="panel editor">
-          <h2>Download decrypted backup</h2>
+        <Dialog
+          title={`Download ${decrypting.name}`}
+          onClose={() => setDecrypting(null)}
+        >
           <p>
             Enter the encryption password used when this backup was created.
             Your account must also have access to this server.
@@ -73,7 +88,7 @@ export function BackupsPage() {
               />
             </Field>
           </SubmitForm>
-        </section>
+        </Dialog>
       )}
       <div className="toolbar">
         <label className="search">
@@ -109,14 +124,14 @@ export function BackupsPage() {
           {rows.length ? (
             <>
               <div className="table-scroll">
-                <table>
+                <table className="backup-history-table">
                   <thead>
                     <tr>
                       <th scope="col">Backup</th>
                       <th scope="col">Created</th>
                       <th scope="col">Availability</th>
                       <th scope="col">Restore verification</th>
-                      <th scope="col">Download</th>
+                      <th scope="col">Actions</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -135,44 +150,28 @@ export function BackupsPage() {
                           </Status>
                         </td>
                         <td>
-                          {b.test ? (
-                            (restoreStatuses[b.test.status] ?? "Unknown")
-                          ) : (
-                            <span className="subtle">Not verified</span>
-                          )}
-                          <Link
-                            className="button secondary small"
-                            to={`/backups/${b.id}/restore-test`}
-                          >
-                            Test / preview
-                          </Link>
+                          <VerificationLabel backup={b} />
                         </td>
                         <td>
-                          {!b.isDisabled ? (
-                            <>
-                              <a
-                                className="button secondary small"
-                                href={`/api/backups/Download?id=${encodeURIComponent(b.id)}`}
-                                download
-                              >
-                                <Download size={15} />
-                                {b.isEncrypted
-                                  ? "Download encrypted"
-                                  : "Download unencrypted"}
-                              </a>
-                              {b.isEncrypted && (
-                                <button
-                                  type="button"
-                                  className="secondary small"
-                                  onClick={() => setDecrypting(b)}
-                                >
-                                  Download decrypted
-                                </button>
-                              )}
-                            </>
-                          ) : (
-                            <span className="subtle">Unavailable</span>
-                          )}
+                          <div className="backup-actions">
+                            <Link
+                              className="button secondary small"
+                              to={`/backups/${b.id}/restore-test`}
+                            >
+                              <FlaskConical size={18} />
+                              Test / preview
+                            </Link>
+                            {!b.isDisabled ? (
+                              <BackupDownloadMenu
+                                backup={b}
+                                onDecrypt={() => setDecrypting(b)}
+                              />
+                            ) : (
+                              <span className="subtle">
+                                Download unavailable
+                              </span>
+                            )}
+                          </div>
                         </td>
                       </tr>
                     ))}
@@ -215,6 +214,146 @@ export function BackupsPage() {
         into disposable containers and capture bounded data samples. Automatic
         tests can be enabled by an administrator.
       </p>
+    </>
+  );
+}
+
+function VerificationLabel({ backup }: { backup: Backup }) {
+  const status = backup.test?.status;
+  const label =
+    status === undefined
+      ? "Not tested"
+      : (restoreStatuses[status] ?? "Unknown");
+  const tone =
+    status === 1
+      ? "success"
+      : status === 2
+        ? "failed"
+        : status === 0 || status === 3
+          ? "pending"
+          : "neutral";
+  const Icon =
+    status === 1
+      ? ShieldCheck
+      : status === 2
+        ? ShieldX
+        : status === 0 || status === 3
+          ? Clock3
+          : CircleHelp;
+  return (
+    <span className={`verification-label verification-${tone}`}>
+      <Icon size={17} aria-hidden="true" />
+      {label}
+    </span>
+  );
+}
+
+function BackupDownloadMenu({
+  backup,
+  onDecrypt,
+}: {
+  backup: Backup;
+  onDecrypt: () => void;
+}) {
+  const id = useId();
+  const menu = useRef<HTMLDivElement>(null);
+  const [open, setOpen] = useState(false);
+  return (
+    <>
+      <button
+        className="secondary small"
+        type="button"
+        popoverTarget={id}
+        aria-haspopup="menu"
+        aria-expanded={open}
+        aria-controls={id}
+        aria-label={`Download ${backup.name}`}
+        onKeyDown={(event) => {
+          if (event.key === "ArrowDown" || event.key === "ArrowUp") {
+            event.preventDefault();
+            if (!menu.current?.matches(":popover-open"))
+              event.currentTarget.click();
+            menu.current
+              ?.querySelector<HTMLElement>('[role="menuitem"]')
+              ?.focus();
+          }
+        }}
+      >
+        <Download size={18} />
+        Download
+        <ChevronDown size={16} />
+      </button>
+      <div
+        id={id}
+        ref={menu}
+        popover="auto"
+        role="menu"
+        aria-label={`Download options for ${backup.name}`}
+        className="backup-download-menu"
+        onToggle={(event) => {
+          setOpen(event.newState === "open");
+          if (
+            event.newState === "open" &&
+            !menu.current?.contains(document.activeElement)
+          )
+            menu.current
+              ?.querySelector<HTMLElement>('[role="menuitem"]')
+              ?.focus();
+        }}
+        onKeyDown={(event) => {
+          if (event.key === "Tab") {
+            menu.current?.hidePopover();
+            return;
+          }
+          const items = Array.from(
+            menu.current?.querySelectorAll<HTMLElement>('[role="menuitem"]') ??
+              [],
+          );
+          const index = items.indexOf(document.activeElement as HTMLElement);
+          const next =
+            event.key === "ArrowDown"
+              ? (index + 1) % items.length
+              : event.key === "ArrowUp"
+                ? (index - 1 + items.length) % items.length
+                : event.key === "Home"
+                  ? 0
+                  : event.key === "End"
+                    ? items.length - 1
+                    : null;
+          if (next !== null) {
+            event.preventDefault();
+            items[next]?.focus();
+          }
+        }}
+      >
+        <a
+          role="menuitem"
+          href={`/api/backups/Download?id=${encodeURIComponent(backup.id)}`}
+          download
+          onClick={() => menu.current?.hidePopover()}
+        >
+          {backup.isEncrypted ? (
+            <LockKeyhole size={18} aria-hidden="true" />
+          ) : (
+            <UnlockKeyhole size={18} aria-hidden="true" />
+          )}
+          {backup.isEncrypted ? "Download encrypted" : "Download unencrypted"}
+        </a>
+        {backup.isEncrypted && (
+          <button
+            role="menuitem"
+            className="secondary"
+            type="button"
+            onClick={() => {
+              menu.current?.hidePopover();
+              onDecrypt();
+            }}
+          >
+            <UnlockKeyhole size={18} aria-hidden="true" />
+            Download decrypted
+          </button>
+        )}
+      </div>
     </>
   );
 }

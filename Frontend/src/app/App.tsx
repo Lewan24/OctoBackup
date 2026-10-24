@@ -1,3 +1,4 @@
+import logo from "../media/OctoBackupLogo.png";
 import { Component, useEffect, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import {
@@ -194,9 +195,13 @@ function Workspace() {
         id="workspace-navigation"
         className={`sidebar ${open ? "is-open" : ""}`}
       >
-        <NavLink to="/" className="brand">
-          <Database /> OctoBackup
-          <span className="brand-dot" />
+        <NavLink
+          to="/"
+          className="brand logo-brand"
+          aria-label="OctoBackup overview"
+        >
+          <img src={logo} alt="" />
+          <span className="brand-name">OctoBackup</span>
         </NavLink>
         <div className="workspace-label">
           <span className="workspace-avatar">
@@ -206,7 +211,7 @@ function Workspace() {
             Backup workspace<small>Self-hosted infrastructure</small>
           </div>
         </div>
-        <nav aria-label="Main navigation">
+        <nav aria-label="Main navigation" onClick={() => setOpen(false)}>
           {navigation.map(({ to, label, icon: Icon }) => (
             <NavLink key={to} to={to} end={to === "/"}>
               <Icon size={19} />

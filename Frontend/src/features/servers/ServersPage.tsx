@@ -7,6 +7,8 @@ import { api } from "../../shared/api";
 import type { Server } from "../../shared/types";
 import { engineCodes, engines } from "../../shared/types";
 import {
+  Dialog,
+  ConfirmDialog,
   Empty,
   ErrorMessage,
   Loading,
@@ -30,33 +32,22 @@ export function ServersPage({
   const [editing, setEditing] = useState<Server | "new" | null>(
     params.has("new") && admin ? "new" : null,
   );
+  const [confirmation, setConfirmation] = useState<{
+    server: Server;
+    path: string;
+    title: string;
+    message: string;
+  } | null>(null);
   const [search, setSearch] = useState("");
   const [encryption, setEncryption] = useState<Server | null>(null);
   const [access, setAccess] = useState<Server | null>(null);
   const [notice, setNotice] = useState("");
-  const [error, setError] = useState<unknown>();
-  const [pending, setPending] = useState<string | null>(null);
   const [deleting, setDeleting] = useState<string | null>(null);
   const query = useQuery({
     queryKey: ["servers"],
     queryFn: ({ signal }) =>
       api<Server[]>("servers/GetMyServers", undefined, signal),
   });
-  async function action(id: string, path: string, message: string) {
-    setPending(id);
-    setError(undefined);
-    setNotice("");
-    try {
-      await api(path, id);
-      setNotice(message);
-      await client.invalidateQueries();
-    } catch (e) {
-      setError(e);
-    } finally {
-      setPending(null);
-      setDeleting(null);
-    }
-  }
   const filtered =
     query.data?.filter((s) =>
       `${s.connectionName} ${s.dbName} ${s.serverHost}`
@@ -82,7 +73,6 @@ export function ServersPage({
           )
         }
       />
-      <ErrorMessage error={error} />
       {admin && (
         <p className="host-policy-hint">
           Host blocked?{" "}
@@ -98,10 +88,14 @@ export function ServersPage({
         </div>
       )}
       {editing && (
-        <section className="panel editor">
-          <h2>
-            {editing === "new" ? "Connect a database" : "Edit connection"}
-          </h2>
+        <Dialog
+          title={
+            editing === "new"
+              ? "Connect a database"
+              : `Edit ${editing.connectionName}`
+          }
+          onClose={() => setEditing(null)}
+        >
           <p>
             Database and SSH secrets are write-only. Leave existing secrets
             blank to keep them.
@@ -114,18 +108,73 @@ export function ServersPage({
               await client.invalidateQueries();
             }}
           />
-        </section>
+        </Dialog>
       )}
       {encryption && (
-        <BackupEncryptionEditor
-          key={encryption.id}
-          serverId={encryption.id}
-          admin={admin}
+        <Dialog
+          title={`Backup encryption · ${encryption.connectionName}`}
           onClose={() => setEncryption(null)}
-        />
+        >
+          <BackupEncryptionEditor
+            key={encryption.id}
+            serverId={encryption.id}
+            admin={admin}
+            onClose={() => setEncryption(null)}
+          />
+        </Dialog>
       )}
       {access && (
-        <AccessPanel server={access} onClose={() => setAccess(null)} />
+        <Dialog
+          title={`Access · ${access.connectionName}`}
+          onClose={() => setAccess(null)}
+        >
+          <AccessPanel server={access} onClose={() => setAccess(null)} />
+        </Dialog>
+      )}
+      {confirmation && (
+        <ConfirmDialog
+          title={`${confirmation.title} · ${confirmation.server.connectionName}`}
+          label={confirmation.title}
+          onClose={() => setConfirmation(null)}
+          onConfirm={async () => {
+            await api(confirmation.path, confirmation.server.id);
+            setNotice(confirmation.message);
+            await client.invalidateQueries();
+          }}
+        >
+          <p>
+            {confirmation.server.dbName} on {confirmation.server.serverHost}:
+            {confirmation.server.serverPort}
+          </p>
+          <p>
+            {confirmation.path.includes("PerformBackup")
+              ? "This saves a request to the backup queue. Execution starts after the cancellation window when the worker is available."
+              : confirmation.path.includes("Test")
+                ? "Check whether the API can connect using the saved credentials. This does not create a backup."
+                : "Update whether this connection is available for new operations."}
+          </p>
+        </ConfirmDialog>
+      )}
+      {deleting && (
+        <ConfirmDialog
+          title="Remove server connection"
+          label="Remove server"
+          onClose={() => setDeleting(null)}
+          onConfirm={async () => {
+            await api("servers/CascadeDeleteServer", deleting);
+            setNotice("Server removed.");
+            await client.invalidateQueries();
+          }}
+        >
+          <p>
+            Remove{" "}
+            <strong>
+              {query.data?.find((s) => s.id === deleting)?.connectionName}
+            </strong>
+            , its schedules and access assignments? Existing backup records
+            remain.
+          </p>
+        </ConfirmDialog>
       )}
       <div className="toolbar">
         <label className="search">
@@ -197,35 +246,33 @@ export function ServersPage({
               <div className="server-actions">
                 <button
                   disabled={
-                    pending !== null ||
                     s.isDisabled ||
                     queueUnavailable ||
                     activeServerIds.includes(s.id)
                   }
                   onClick={() =>
-                    void action(
-                      s.id,
-                      "backups/PerformBackup",
-                      "Backup request saved. You can cancel it from the queue before execution.",
-                    )
+                    setConfirmation({
+                      server: s,
+                      path: "backups/PerformBackup",
+                      title: "Queue backup",
+                      message:
+                        "Backup request saved. You can cancel it from the queue before execution.",
+                    })
                   }
                 >
                   <Play size={15} />
-                  {pending === s.id
-                    ? "Requesting…"
-                    : activeServerIds.includes(s.id)
-                      ? "In queue"
-                      : "Queue backup"}
+                  {activeServerIds.includes(s.id) ? "In queue" : "Queue backup"}
                 </button>
                 <button
                   className="secondary"
-                  disabled={pending !== null || s.isDisabled}
+                  disabled={s.isDisabled}
                   onClick={() =>
-                    void action(
-                      s.id,
-                      "servers/TestServerConnection",
-                      "Connection test succeeded.",
-                    )
+                    setConfirmation({
+                      server: s,
+                      path: "servers/TestServerConnection",
+                      title: "Test connection",
+                      message: "Connection test succeeded.",
+                    })
                   }
                 >
                   <Cable size={16} />
@@ -257,13 +304,13 @@ export function ServersPage({
                   <button
                     className="icon-button"
                     aria-label={`${s.isDisabled ? "Enable" : "Disable"} ${s.connectionName}`}
-                    disabled={pending !== null}
                     onClick={() =>
-                      void action(
-                        s.id,
-                        "servers/ToggleServerDisabledStatus",
-                        "Server state updated.",
-                      )
+                      setConfirmation({
+                        server: s,
+                        path: "servers/ToggleServerDisabledStatus",
+                        title: "Change server availability",
+                        message: "Server state updated.",
+                      })
                     }
                   >
                     <Power size={16} />
@@ -274,33 +321,6 @@ export function ServersPage({
                     onClick={() => setDeleting(s.id)}
                   >
                     <Trash2 size={16} />
-                  </button>
-                </div>
-              )}
-              {deleting === s.id && (
-                <div className="delete-confirm">
-                  <p>
-                    Remove this connection, its schedules, and access
-                    assignments? Existing backup records remain.
-                  </p>
-                  <button
-                    className="danger"
-                    disabled={pending !== null}
-                    onClick={() =>
-                      void action(
-                        s.id,
-                        "servers/CascadeDeleteServer",
-                        "Server removed.",
-                      )
-                    }
-                  >
-                    Remove server
-                  </button>
-                  <button
-                    className="secondary"
-                    onClick={() => setDeleting(null)}
-                  >
-                    Keep server
                   </button>
                 </div>
               )}
@@ -319,8 +339,7 @@ function AccessPanel({
   onClose: () => void;
 }) {
   const client = useQueryClient();
-  const [error, setError] = useState<unknown>();
-  const [busy, setBusy] = useState(false);
+  const [revoking, setRevoking] = useState<string | null>(null);
   const query = useQuery({
     queryKey: ["access", server.id],
     queryFn: () => api<string[]>("servers/GetUsersThatAccessServer", server.id),
@@ -332,7 +351,26 @@ function AccessPanel({
         Administrators have access to all servers. Grant operators access by
         email.
       </p>
-      <ErrorMessage error={query.error ?? error} />
+      <ErrorMessage error={query.error} />
+      {revoking && (
+        <ConfirmDialog
+          title="Revoke server access"
+          label="Revoke access"
+          onClose={() => setRevoking(null)}
+          onConfirm={async () => {
+            await api("servers/RemoveUserAccessFromServer", {
+              serverId: server.id,
+              userEmail: revoking,
+            });
+            await client.invalidateQueries();
+          }}
+        >
+          <p>
+            Remove access for <strong>{revoking}</strong> to{" "}
+            <strong>{server.connectionName}</strong>?
+          </p>
+        </ConfirmDialog>
+      )}
       {query.isPending ? (
         <Loading />
       ) : (
@@ -340,25 +378,7 @@ function AccessPanel({
           {query.data?.map((email) => (
             <li key={email}>
               <span>{email}</span>
-              <button
-                className="secondary"
-                disabled={busy}
-                onClick={async () => {
-                  setBusy(true);
-                  setError(undefined);
-                  try {
-                    await api("servers/RemoveUserAccessFromServer", {
-                      serverId: server.id,
-                      userEmail: email,
-                    });
-                    await client.invalidateQueries();
-                  } catch (e) {
-                    setError(e);
-                  } finally {
-                    setBusy(false);
-                  }
-                }}
-              >
+              <button className="secondary" onClick={() => setRevoking(email)}>
                 Revoke access
               </button>
             </li>

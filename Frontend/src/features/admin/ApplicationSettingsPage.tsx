@@ -14,6 +14,7 @@ import {
   restoreRuntimeHelp,
 } from "../../shared/restoreTesting";
 import {
+  Dialog,
   ErrorMessage,
   Field,
   Loading,
@@ -39,6 +40,7 @@ const queryKey = ["application-settings"];
 
 export function ApplicationSettingsPage() {
   const client = useQueryClient();
+  const [editing, setEditing] = useState(false);
   const [saved, setSaved] = useState(false);
   const [editorVersion, setEditorVersion] = useState(0);
   const query = useQuery({
@@ -68,24 +70,62 @@ export function ApplicationSettingsPage() {
                 </p>
               )}
               <BackupEncryptionSettings />
-              <SettingsEditor
-                key={`${query.data.revision}-${editorVersion}`}
-                settings={query.data}
-                onSave={(settings) => {
-                  client.setQueryData(queryKey, settings);
-                  void client.invalidateQueries({
-                    queryKey: ["registration-policy"],
-                  });
-                  setSaved(true);
-                }}
-                onReload={() => {
-                  setSaved(false);
-                  void query.refetch().then((result) => {
-                    if (!result.isError)
-                      setEditorVersion((version) => version + 1);
-                  });
-                }}
-              />
+              <section className="panel action-card">
+                <h2>Workspace policies</h2>
+                <p>
+                  Manage approved hosts, account registration, retention and
+                  queue timing in one focused editor.
+                </p>
+                <dl className="policy-summary">
+                  <div>
+                    <dt>Approved hosts</dt>
+                    <dd>{query.data.allowedDatabaseHosts.length}</dd>
+                  </div>
+                  <div>
+                    <dt>Public registration</dt>
+                    <dd>
+                      {query.data.registrationEnabled ? "Enabled" : "Disabled"}
+                    </dd>
+                  </div>
+                  <div>
+                    <dt>Default retention</dt>
+                    <dd>{query.data.defaultRetentionDays} days</dd>
+                  </div>
+                  <div>
+                    <dt>Schedule polling</dt>
+                    <dd>{query.data.schedulePollSeconds} seconds</dd>
+                  </div>
+                </dl>
+                <button onClick={() => setEditing(true)}>
+                  Edit workspace policies
+                </button>
+              </section>
+              {editing && (
+                <Dialog
+                  title="Workspace policies"
+                  onClose={() => setEditing(false)}
+                >
+                  <SettingsEditor
+                    key={`${query.data.revision}-${editorVersion}`}
+                    settings={query.data}
+                    onSave={(settings) => {
+                      client.setQueryData(queryKey, settings);
+                      void client.invalidateQueries({
+                        queryKey: ["registration-policy"],
+                      });
+                      setSaved(true);
+                      setEditing(false);
+                    }}
+                    onReload={() => {
+                      setSaved(false);
+                      void query.refetch().then((result) => {
+                        if (!result.isError)
+                          setEditorVersion((version) => version + 1);
+                      });
+                    }}
+                  />
+                </Dialog>
+              )}
             </div>
             <aside
               className="panel settings-context"

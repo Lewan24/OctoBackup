@@ -144,3 +144,19 @@ are in [migration progress](docs/MIGRATION.md).
 [Product](docs/PRODUCT.md) | [Design](docs/DESIGN.md) | [Agent guidance](AGENTS.md)
 
 MIT licensed; see [LICENSE](LICENSE).
+
+## Interface refresh (2026-10-24)
+
+The workspace uses midnight and navy surfaces with deep blue/cobalt
+gradients and white action labels, larger text and icons, and the supplied white octopus navigation logo.
+Hover or focus the logo to reveal OctoBackup. Editing and sensitive operational
+actions use focused dialogs with resource context, explicit submit/confirmation,
+pending state and inline API errors. Application settings expose summary cards;
+open **Edit workspace policies** or **Manage backup encryption** to edit values.
+See [interface guidance](docs/DESIGN.md). Authentication and API authorization are unchanged.
+
+The canvas is near-black (`#04070D`), with a 128px navigation logo and a 104px sign-in logo.
+
+Backup history separates colored restore-verification labels from the Actions column.
+Use **Test / preview** for the report and **Download** for encrypted/decrypted choices.
+Decrypted downloads require the archive password; unencrypted archives offer their original file.

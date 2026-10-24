@@ -24,10 +24,10 @@ backup success or restore-verification results. Credentials are write-only in UI
 
 ## Brand Commitments
 
-OctoBackup name. Latest user direction replaces the earlier light/teal interface:
-compact, modern, minimalist dark UI for administrators, programmers and technical
-operators, with cyberpunk influence, distinctive colors, gradients and purposeful
-animation. Keep standard navigation, readable data and real operations foremost.
+OctoBackup name. Latest user direction replaces the previous turquoise interface:
+readable, modern dark UI for administrators, programmers and technical
+operators, with a near-black canvas and midnight/navy surfaces and deep blue/cobalt gradients, larger
+typography and focused action dialogs. Keep standard navigation, readable data and real operations foremost.
 
 ## Product Principles
 

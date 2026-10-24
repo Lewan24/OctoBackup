@@ -123,3 +123,20 @@ którego używa API, np. `docker image pull mysql:8.4`, a następnie ponów test
 
 [Architektura](ARCHITECTURE.md) | [Bezpieczeństwo](SECURITY.md) |
 [Postęp i testy](MIGRATION.md) | [Plan](ROADMAP.md) | [Licencja MIT](../LICENSE)
+
+## Odświeżony interfejs (2026-10-24)
+
+Interfejs ma ciemnogranatowe powierzchnie, głębokie niebieskie i kobaltowe
+gradienty oraz białe etykiety przycisków oraz większy tekst i ikony. Białe logo ośmiornicy jest wyśrodkowane w menu;
+nazwa OctoBackup pojawia się po najechaniu lub uzyskaniu fokusu klawiaturą.
+Edycja i istotne operacje korzystają z okien dialogowych z danymi zasobu,
+potwierdzeniem, stanem oczekiwania i błędami API. Ustawienia aplikacji prezentują
+podsumowania; przyciski **Edit workspace policies** i **Manage backup encryption**
+otwierają edytory. Zobacz [opis interfejsu](DESIGN.md).
+Uwierzytelnianie i autoryzacja API pozostają bez zmian.
+
+Tło jest niemal czarne (`#04070D`), a logo ma 128px w menu i 104px na stronie logowania.
+
+Historia kopii oddziela kolorowy status testu przywracania od kolumny Actions.
+**Test / preview** otwiera raport, a **Download** udostępnia menu pobierania.
+Pobranie odszyfrowanej kopii wymaga hasła archiwum; kopie niezaszyfrowane oferują plik oryginalny.

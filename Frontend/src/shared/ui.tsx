@@ -1,6 +1,6 @@
-import { cloneElement, useId, useState } from "react";
+import { cloneElement, useEffect, useId, useRef, useState } from "react";
 import type { ReactElement, ReactNode, FormEvent } from "react";
-import { AlertCircle, Database, LoaderCircle } from "lucide-react";
+import { AlertCircle, Database, LoaderCircle, X } from "lucide-react";
 export function Empty({
   title,
   children,
@@ -77,7 +77,7 @@ export function SubmitForm({
     }
   }
   return (
-    <form onSubmit={submit}>
+    <form onSubmit={submit} aria-busy={pending}>
       <fieldset disabled={pending}>{children}</fieldset>
       <ErrorMessage error={error} />
       <div className="form-actions">
@@ -130,5 +130,111 @@ export function Status({
       <span />
       {children}
     </span>
+  );
+}
+
+export function Dialog({
+  title,
+  children,
+  onClose,
+}: {
+  title: string;
+  children: ReactNode;
+  onClose: () => void;
+}) {
+  const ref = useRef<HTMLDialogElement>(null);
+  const titleId = useId();
+  useEffect(() => {
+    const dialog = ref.current!;
+    const previous = document.activeElement as HTMLElement | null;
+    dialog.showModal();
+    const oldOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      dialog.close();
+      document.body.style.overflow = oldOverflow;
+      previous?.focus();
+    };
+  }, []);
+  return (
+    <dialog
+      ref={ref}
+      className="action-dialog"
+      aria-labelledby={titleId}
+      onKeyDown={(event) => {
+        if (
+          event.key !== "Tab" ||
+          (event.target as HTMLElement).closest("dialog") !==
+            event.currentTarget
+        )
+          return;
+        const controls = Array.from(
+          event.currentTarget.querySelectorAll<HTMLElement>(
+            'button:not(:disabled), a[href], input:not(:disabled), select:not(:disabled), textarea:not(:disabled), [tabindex]:not([tabindex="-1"])',
+          ),
+        ).filter((element) => element.getClientRects().length > 0);
+        const first = controls[0];
+        const last = controls.at(-1);
+        if (event.shiftKey && document.activeElement === first) {
+          event.preventDefault();
+          last?.focus();
+        } else if (!event.shiftKey && document.activeElement === last) {
+          event.preventDefault();
+          first?.focus();
+        }
+      }}
+      onCancel={(e) => {
+        e.preventDefault();
+        if (!ref.current?.querySelector('form[aria-busy="true"]')) onClose();
+      }}
+    >
+      <header className="dialog-heading">
+        <div>
+          <span className="dialog-eyebrow">Workspace action</span>
+          <h2 id={titleId}>{title}</h2>
+        </div>
+        <button
+          type="button"
+          className="icon-button"
+          aria-label="Close dialog"
+          onClick={() => {
+            if (!ref.current?.querySelector('form[aria-busy="true"]'))
+              onClose();
+          }}
+        >
+          <X />
+        </button>
+      </header>
+      <div className="dialog-body">{children}</div>
+    </dialog>
+  );
+}
+
+export function ConfirmDialog({
+  title,
+  children,
+  label = "Confirm",
+  onConfirm,
+  onClose,
+}: {
+  title: string;
+  children: ReactNode;
+  label?: string;
+  onConfirm: () => Promise<unknown>;
+  onClose: () => void;
+}) {
+  return (
+    <Dialog title={title} onClose={onClose}>
+      <SubmitForm
+        label={label}
+        onCancel={onClose}
+        onSubmit={async () => {
+          await onConfirm();
+          onClose();
+        }}
+      >
+        <div className="confirmation-details">{children}</div>
+      </SubmitForm>
+    </Dialog>
   );
 }

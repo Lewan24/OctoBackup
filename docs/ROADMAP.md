@@ -53,3 +53,25 @@ administrator resets and mounted SQLite online snapshots are implemented. Furthe
 work: remote SQLite snapshot transport, SQL Server SFTP/object-storage retrieval,
 large-download streaming in browsers, separate-process SQLite validation, and
 broader native SQL Server versions, layouts and production-scale restore verification.
+
+## Interface refresh — 2026-10-24
+
+Implemented the user-directed carbon/ocean palette, larger typography and controls,
+white octopus brand mark, summary cards and modal editing/confirmation flows.
+Dialog regressions cover failed-action retry and prevention of pending dismissal.
+Validation: 101 backend tests, 16 frontend tests, production build and 4 desktop/mobile
+browser checks passed; npm and NuGet audits reported no vulnerabilities. Results
+and limitations are recorded in docs/UI_REFRESH.md. No provider restore or
+penetration-test claims are made by this visual refresh.
+
+### Dark blue palette follow-up
+
+Replaced turquoise surfaces/accents with the requested midnight/navy/cobalt palette
+and gradients; retained larger typography, white logo and dialog workflows.
+See UI_REFRESH.md for validation results.
+
+Dark background follow-up: near-black canvas, darker navigation/sign-in backgrounds,
+and larger logos (128px navigation, 104px sign-in). See UI_REFRESH.md for checks.
+
+Backup history follow-up: separate restore status labels and Actions, with native
+download menus and password-gated decryption. Validation is in UI_REFRESH.md.
