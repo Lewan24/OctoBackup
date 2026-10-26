@@ -21,6 +21,16 @@ test("sign in, manage a connection and schedule, inspect history, and sign out",
   await page.getByLabel("Email address").fill("admin@e2e.example");
   await page
     .getByLabel("Password", { exact: true })
+    .fill("RejectedPassword123!");
+  await page.getByRole("button", { name: "Sign in", exact: true }).click();
+  await expect(page.getByRole("alert")).toContainText(
+    "Sign-in failed. Check your email and password",
+  );
+  await expect(
+    page.getByText("Your session has ended. Sign in again."),
+  ).toHaveCount(0);
+  await page
+    .getByLabel("Password", { exact: true })
     .fill("E2eTestPassword123!");
   await page.getByRole("button", { name: "Sign in", exact: true }).click();
   await expect(

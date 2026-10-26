@@ -48,6 +48,39 @@ it("does not submit a mutation if CSRF initialization fails", async () => {
   expect(fetch).toHaveBeenCalledTimes(1);
 });
 
+it("explains a rejected login instead of reporting an expired session", async () => {
+  vi.stubGlobal(
+    "fetch",
+    vi
+      .fn()
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify({ token: "csrf-token" })),
+      )
+      .mockResolvedValueOnce(new Response(null, { status: 401 })),
+  );
+  await expect(
+    api("auth/Login", {
+      email: "user@example.com",
+      password: "wrong-password",
+    }),
+  ).rejects.toEqual(
+    new ApiError(
+      401,
+      "Sign-in failed. Check your email and password, or ask an administrator to check account access.",
+    ),
+  );
+});
+
+it("still reports an expired session for protected requests", async () => {
+  vi.stubGlobal(
+    "fetch",
+    vi.fn().mockResolvedValue(new Response(null, { status: 401 })),
+  );
+  await expect(api("servers/GetMyServers")).rejects.toEqual(
+    new ApiError(401, "Your session has ended. Sign in again."),
+  );
+});
+
 it("returns a binary response through the same CSRF-protected transport", async () => {
   const fetch = vi
     .fn()

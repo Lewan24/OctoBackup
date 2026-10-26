@@ -1,0 +1,53 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1400 850" role="img" aria-labelledby="title desc">
+<title id="title">OctoBackup deployment</title><desc id="desc">Browser via HTTPS edge to HTTP React Nginx and private API, persistent storage, database sources and optional isolated restore containers.</desc>
+<defs><marker id="arrow" markerWidth="10" markerHeight="8" refX="9" refY="4" orient="auto"><path d="M0 0 L10 4 L0 8" fill="#86b8ec"/></marker></defs><rect width="1400" height="850" fill="#07111f"/>
+<path d="M290 230.0 L375 230.0" fill="none" stroke="#86b8ec" stroke-width="2" marker-end="url(#arrow)"/>
+<text x="332.5" y="166" text-anchor="middle" fill="#c6dcf5" font-family="sans-serif" font-size="13">HTTPS</text>
+<path d="M655 230.0 L740 230.0" fill="none" stroke="#86b8ec" stroke-width="2" marker-end="url(#arrow)"/>
+<text x="697.5" y="166" text-anchor="middle" fill="#c6dcf5" font-family="sans-serif" font-size="13">HTTP + WebSocket</text>
+<path d="M865.0 280 L890.0 420" fill="none" stroke="#86b8ec" stroke-width="2" marker-end="url(#arrow)"/>
+<text x="877.5" y="341.0" text-anchor="middle" fill="#c6dcf5" font-family="sans-serif" font-size="13">HTTP + trusted forwarding</text>
+<path d="M1040 475.0 L1100 475.0" fill="none" stroke="#86b8ec" stroke-width="2" marker-end="url(#arrow)"/>
+<text x="1070.0" y="396" text-anchor="middle" fill="#c6dcf5" font-family="sans-serif" font-size="13">EF / filesystem</text>
+<path d="M740 475.0 L665 475.0" fill="none" stroke="#86b8ec" stroke-width="2" marker-end="url(#arrow)"/>
+<text x="702.5" y="396" text-anchor="middle" fill="#c6dcf5" font-family="sans-serif" font-size="13">Export / snapshot</text>
+<path d="M375 475.0 L290 475.0" fill="none" stroke="#86b8ec" stroke-width="2" marker-end="url(#arrow)" stroke-dasharray="7 5"/>
+<text x="332.5" y="396" text-anchor="middle" fill="#c6dcf5" font-family="sans-serif" font-size="13">Optional tunnel</text>
+<path d="M890.0 530 L890.0 670" fill="none" stroke="#86b8ec" stroke-width="2" marker-end="url(#arrow)" stroke-dasharray="7 5"/>
+<text x="904.0" y="591.0" text-anchor="start" fill="#c6dcf5" font-family="sans-serif" font-size="13">Deployment opt-in</text>
+<text x="56" y="50" text-anchor="start" fill="#edf5ff" font-family="sans-serif" font-size="22">Deployment</text>
+<text x="56" y="74" text-anchor="start" fill="#edf5ff" font-family="sans-serif" font-size="22">Public TLS at the edge • private HTTP application containers • one API replica</text>
+<rect x="40" y="180" width="250" height="100" rx="12" fill="#102b49" stroke="#4c77a1"/>
+<text x="165.0" y="218.0" text-anchor="middle" fill="#edf5ff" font-family="sans-serif" font-size="15">Browser</text>
+<text x="165.0" y="242.0" text-anchor="middle" fill="#edf5ff" font-family="sans-serif" font-size="15">Cookie session + in-memory CSRF</text>
+<rect x="375" y="180" width="280" height="100" rx="12" fill="#183e65" stroke="#4c77a1"/>
+<text x="515.0" y="218.0" text-anchor="middle" fill="#edf5ff" font-family="sans-serif" font-size="15">Your reverse proxy</text>
+<text x="515.0" y="242.0" text-anchor="middle" fill="#edf5ff" font-family="sans-serif" font-size="15">TLS certificates / redirect / HSTS</text>
+<rect x="740" y="180" width="250" height="100" rx="12" fill="#102b49" stroke="#4c77a1"/>
+<text x="865.0" y="218.0" text-anchor="middle" fill="#edf5ff" font-family="sans-serif" font-size="15">Frontend :8080</text>
+<text x="865.0" y="242.0" text-anchor="middle" fill="#edf5ff" font-family="sans-serif" font-size="15">React SPA + Nginx</text>
+<rect x="740" y="420" width="300" height="110" rx="12" fill="#183e65" stroke="#4c77a1"/>
+<text x="890.0" y="463.0" text-anchor="middle" fill="#edf5ff" font-family="sans-serif" font-size="15">Server.Api :8080</text>
+<text x="890.0" y="487.0" text-anchor="middle" fill="#edf5ff" font-family="sans-serif" font-size="15">Identity / API / workers / SignalR</text>
+<rect x="1100" y="410" width="260" height="130" rx="12" fill="#17383c" stroke="#4c77a1"/>
+<text x="1230.0" y="451.0" text-anchor="middle" fill="#edf5ff" font-family="sans-serif" font-size="15">Persistent /data</text>
+<text x="1230.0" y="475.0" text-anchor="middle" fill="#edf5ff" font-family="sans-serif" font-size="15">Config/OctoBackup.db</text>
+<text x="1230.0" y="499.0" text-anchor="middle" fill="#edf5ff" font-family="sans-serif" font-size="15">Backups/ + keys/ + admin settings</text>
+<rect x="375" y="410" width="290" height="130" rx="12" fill="#102b49" stroke="#4c77a1"/>
+<text x="520.0" y="451.0" text-anchor="middle" fill="#edf5ff" font-family="sans-serif" font-size="15">Database sources</text>
+<text x="520.0" y="475.0" text-anchor="middle" fill="#edf5ff" font-family="sans-serif" font-size="15">MySQL / MariaDB / PostgreSQL</text>
+<text x="520.0" y="499.0" text-anchor="middle" fill="#edf5ff" font-family="sans-serif" font-size="15">SQL Server shared staging / SQLite</text>
+<rect x="40" y="410" width="250" height="130" rx="12" fill="#102b49" stroke="#4c77a1"/>
+<text x="165.0" y="451.0" text-anchor="middle" fill="#edf5ff" font-family="sans-serif" font-size="15">Verified SSH gateway</text>
+<text x="165.0" y="475.0" text-anchor="middle" fill="#edf5ff" font-family="sans-serif" font-size="15">Exact host allowlists + SHA256</text>
+<text x="165.0" y="499.0" text-anchor="middle" fill="#edf5ff" font-family="sans-serif" font-size="15">pins</text>
+<rect x="740" y="670" width="300" height="120" rx="12" fill="#392e52" stroke="#4c77a1"/>
+<text x="890.0" y="706.0" text-anchor="middle" fill="#edf5ff" font-family="sans-serif" font-size="15">Opt-in restore runtime</text>
+<text x="890.0" y="730.0" text-anchor="middle" fill="#edf5ff" font-family="sans-serif" font-size="15">Dedicated Docker daemon</text>
+<text x="890.0" y="754.0" text-anchor="middle" fill="#edf5ff" font-family="sans-serif" font-size="15">Networkless, bounded containers</text>
+<rect x="40" y="670" width="625" height="120" rx="12" fill="#0d2034" stroke="#4c77a1"/>
+<text x="352.5" y="694.0" text-anchor="middle" fill="#edf5ff" font-family="sans-serif" font-size="15">Production cookies remain Secure. The frontend overwrites forwarded</text>
+<text x="352.5" y="718.0" text-anchor="middle" fill="#edf5ff" font-family="sans-serif" font-size="15">scheme/address; the API trusts its explicit IP only.</text>
+<text x="352.5" y="742.0" text-anchor="middle" fill="#edf5ff" font-family="sans-serif" font-size="15">Keep CRYPTO_KEY and recovery passwords outside the browser; preserve the entire</text>
+<text x="352.5" y="766.0" text-anchor="middle" fill="#edf5ff" font-family="sans-serif" font-size="15">data volume and key ring.</text>
+</svg>

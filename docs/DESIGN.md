@@ -1,8 +1,7 @@
-﻿# OctoBackup interface
+# OctoBackup interface
 
-The current user brief defines a readable midnight-blue operations workspace.
-This replaces the previous turquoise palette. The custom visual direction follows
-the user-provided palette.
+The interface uses a readable midnight-blue operations workspace with explicit
+actions, real data and truthful loading, empty, pending and failure states.
 
 ## Tokens and hierarchy
 

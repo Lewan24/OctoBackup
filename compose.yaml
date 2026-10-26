@@ -1,11 +1,11 @@
 name: octobackup
 services:
   api:
-    build:
-      context: .
-      dockerfile: Backend/Dockerfile
+    image: lewan24/octobackup-api:latest
     restart: unless-stopped
     environment:
+      RestoreTests__Enabled: "false"
+      Security__AllowInsecureHttp: ${ALLOW_INSECURE_HTTP:-false}
       DataProtection__KeysDirectory: /data/keys
       CRYPTO_KEY: ${CRYPTO_KEY:?Run node scripts/dev.mjs init first}
       Bootstrap__AdminEmail: ${ADMIN_EMAIL:?Set ADMIN_EMAIL in .env}
@@ -18,12 +18,10 @@ services:
       Security__AllowedDatabaseHosts__4: sqlserver
       ReverseProxy__Enabled: "true"
       ReverseProxy__KnownProxies__0: ${FRONTEND_IP:-172.30.85.2}
-      OCTOBACKUP_SSH_HOST_KEYS: /certs/ssh-host-keys.json
     extra_hosts:
       - "host.docker.internal:host-gateway"
     volumes:
       - octobackup-data:/data
-      - ./certs:/certs:ro
     read_only: true
     tmpfs:
       - /tmp
@@ -32,17 +30,13 @@ services:
     networks: [web]
 
   frontend:
-    build:
-      context: .
-      dockerfile: Frontend/Dockerfile
+    image: lewan24/octobackup-web:latest
     restart: unless-stopped
     depends_on:
       api:
         condition: service_healthy
     ports:
-      - "127.0.0.1:${FRONTEND_PORT:-8443}:8443"
-    volumes:
-      - ./certs:/certs:ro
+      - "127.0.0.1:${FRONTEND_PORT:-8080}:8080"
     read_only: true
     tmpfs:
       - /tmp

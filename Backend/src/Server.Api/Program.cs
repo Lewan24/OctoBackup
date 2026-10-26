@@ -24,6 +24,11 @@ using Modules.Shared.Settings;
 var builder = WebApplication.CreateBuilder(args);
 var localSettingsCreated = DevelopmentSettings.Configure(builder.Configuration, builder.Environment.ContentRootPath, builder.Environment.IsDevelopment());
 var settingsReloadLog = ReloadableAppSettings.Configure(builder.Configuration, builder.Environment.ContentRootPath);
+// Plain HTTP is an explicit deployment choice for isolated test/private networks.
+// Keep Secure cookies as the production default even though the API listener is HTTP.
+var allowInsecureHttp = builder.Configuration.GetValue("Security:AllowInsecureHttp", false);
+var cookieSecurePolicy = allowInsecureHttp ? CookieSecurePolicy.None
+    : builder.Environment.IsDevelopment() ? CookieSecurePolicy.SameAsRequest : CookieSecurePolicy.Always;
 builder.WebHost.ConfigureKestrel(o => o.Limits.MaxRequestBodySize = 128 * 1024);
 var dataRoot = DevelopmentSettings.ResolveDataDirectory(builder.Configuration, builder.Environment.ContentRootPath);
 var sshPins = builder.Configuration["OCTOBACKUP_SSH_HOST_KEYS"];
@@ -68,8 +73,7 @@ builder.Services.ConfigureApplicationCookie(o =>
     o.Cookie.Name = "OctoBackup.Session";
     o.Cookie.HttpOnly = true;
     o.Cookie.SameSite = SameSiteMode.Strict;
-    o.Cookie.SecurePolicy = builder.Environment.IsDevelopment()
-        ? CookieSecurePolicy.SameAsRequest : CookieSecurePolicy.Always;
+    o.Cookie.SecurePolicy = cookieSecurePolicy;
     o.ExpireTimeSpan = TimeSpan.FromMinutes(30);
     o.SlidingExpiration = true;
     o.Events.OnRedirectToLogin = c => { c.Response.StatusCode = 401; return Task.CompletedTask; };
@@ -89,8 +93,7 @@ builder.Services.AddAntiforgery(o =>
     o.HeaderName = "X-CSRF-TOKEN";
     o.Cookie.Name = "OctoBackup.Csrf";
     o.Cookie.SameSite = SameSiteMode.Strict;
-    o.Cookie.SecurePolicy = builder.Environment.IsDevelopment()
-        ? CookieSecurePolicy.SameAsRequest : CookieSecurePolicy.Always;
+    o.Cookie.SecurePolicy = cookieSecurePolicy;
 });
 builder.Services.AddRateLimiter(o =>
 {
@@ -115,11 +118,8 @@ if (localSettingsCreated)
         Path.Combine(builder.Environment.ContentRootPath, DevelopmentSettings.FileName));
 if (proxyEnabled) app.UseForwardedHeaders();
 app.UseExceptionHandler();
-if (!app.Environment.IsDevelopment())
-{
-    app.UseHsts();
-    app.UseWhen(context => !context.Request.Path.StartsWithSegments("/api/health"), branch => branch.UseHttpsRedirection());
-}
+// TLS and HTTP-to-HTTPS redirects belong to the public reverse proxy.
+// The private API accepts HTTP; production cookies default to Secure.
 app.Use(async (c, next) =>
 {
     c.Response.Headers.XContentTypeOptions = "nosniff";
@@ -127,7 +127,12 @@ app.Use(async (c, next) =>
     c.Response.Headers["Referrer-Policy"] = "no-referrer";
     c.Response.Headers["Permissions-Policy"] = "camera=(), microphone=(), geolocation=()";
     c.Response.Headers.ContentSecurityPolicy = "default-src 'self'; script-src 'self'; style-src 'self'; font-src 'self'; img-src 'self' data:; connect-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'; object-src 'none'";
-    if (c.Request.Path.StartsWithSegments("/api")) c.Response.Headers.CacheControl = "no-store";
+    if (c.Request.Path.StartsWithSegments("/api"))
+    {
+        // Match antiforgery's required policy instead of making it override ours.
+        c.Response.Headers.CacheControl = "no-cache, no-store";
+        c.Response.Headers.Pragma = "no-cache";
+    }
     await next();
 });
 var serveFrontend = builder.Configuration.GetValue<bool>("Hosting:ServeFrontend");
@@ -140,12 +145,34 @@ app.Use(async (c, next) =>
 {
     if (c.Request.Path.StartsWithSegments("/api") && c.Request.Method is not ("GET" or "HEAD" or "OPTIONS"))
     {
-        try { await c.RequestServices.GetRequiredService<IAntiforgery>().ValidateRequestAsync(c); }
-        catch (AntiforgeryValidationException) { c.Response.StatusCode = 400; await c.Response.WriteAsJsonAsync(new { title = "Invalid security token. Refresh the page and try again." }); return; }
+        var missingCookie = !c.Request.Cookies.ContainsKey("OctoBackup.Csrf");
+        var insecureRequest = cookieSecurePolicy == CookieSecurePolicy.Always && !c.Request.IsHttps;
+        var valid = false;
+        if (!missingCookie && !insecureRequest)
+        {
+            try { await c.RequestServices.GetRequiredService<IAntiforgery>().ValidateRequestAsync(c); valid = true; }
+            catch (AntiforgeryValidationException) { }
+        }
+        if (!valid)
+        {
+            c.Response.StatusCode = 400;
+            await c.Response.WriteAsJsonAsync(new {
+                code = missingCookie ? "csrf_cookie_missing" : insecureRequest ? "https_required" : "csrf_invalid",
+                title = missingCookie
+                    ? cookieSecurePolicy == CookieSecurePolicy.Always
+                        ? "The browser did not send the security cookie. Open the application using HTTPS, allow cookies, and refresh the page."
+                        : "The browser did not send the security cookie. Allow cookies and refresh the page."
+                    : insecureRequest ? "Secure cookies require HTTPS. Open the public HTTPS URL and check the trusted reverse-proxy configuration."
+                    : "Invalid security token. Refresh the page and try again." });
+            return;
+        }
     }
     await next();
 });
-app.MapGet("/api/auth/csrf", (HttpContext c, IAntiforgery a) => Results.Ok(new { token = a.GetAndStoreTokens(c).RequestToken })).AllowAnonymous();
+app.MapGet("/api/auth/csrf", (HttpContext c, IAntiforgery a) =>
+    cookieSecurePolicy == CookieSecurePolicy.Always && !c.Request.IsHttps
+        ? Results.Problem(statusCode: 400, title: "Secure cookies require HTTPS. Open the public HTTPS URL and check the trusted reverse-proxy configuration.")
+        : Results.Ok(new { token = a.GetAndStoreTokens(c).RequestToken })).AllowAnonymous();
 app.MapGet("/api/health", () => Results.Ok(new { status = "ok" })).AllowAnonymous();
 app.MapBackupModuleEndpoints();
 app.MapAuthModuleEndpoints();
@@ -167,5 +194,7 @@ using (var scope = app.Services.CreateScope())
 }
 app.Logger.LogInformation("OctoBackup API starting in {Environment}. Data: {DataPath}. Trusted proxy: {ProxyEnabled}. SPA hosting: {ServeFrontend}.",
     app.Environment.EnvironmentName, dataRoot, proxyEnabled, serveFrontend);
+if (allowInsecureHttp)
+    app.Logger.LogWarning("Insecure HTTP cookie mode is enabled. Use only on isolated test/private networks; disable Security:AllowInsecureHttp for public HTTPS deployments.");
 app.Run();
 public partial class Program;

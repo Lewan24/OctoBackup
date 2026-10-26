@@ -13,7 +13,12 @@ public static class BootstrapAdmin
         var password = config["Bootstrap:AdminPassword"];
         if (string.IsNullOrWhiteSpace(email) || string.IsNullOrWhiteSpace(password)) return;
         var users = services.GetRequiredService<UserManager<AppUser>>();
-        if (await users.Users.AnyAsync()) return;
+        if (await users.Users.AnyAsync())
+        {
+            services.GetRequiredService<ILoggerFactory>().CreateLogger("Server.Api.Security.BootstrapAdmin")
+                .LogInformation("Existing user store detected. Bootstrap credentials are not applied; changing bootstrap settings does not reset existing accounts.");
+            return;
+        }
         var user = new AppUser { UserName = email, Email = email, EmailConfirmed = true };
         var result = await users.CreateAsync(user, password);
         if (!result.Succeeded) throw new InvalidOperationException("Bootstrap admin creation failed: " + string.Join("; ", result.Errors.Select(e => e.Description)));

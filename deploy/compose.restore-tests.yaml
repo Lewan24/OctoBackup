@@ -3,6 +3,8 @@
 services:
   api:
     build:
+      context: .
+      dockerfile: Backend/Dockerfile
       target: restore-runner
     environment:
       RestoreTests__Enabled: "true"

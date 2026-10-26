@@ -73,14 +73,27 @@ explicitly rather than silently falling back. Restart the API after installing
 clients/changing PATH or local startup settings. Do not replace encryption keys.
 `mysqldump --version` / `mariadb-dump --no-defaults --help` must succeed for the API
 service account. TLS, authentication plugins and export grants must match the server.
-See [dump grants and troubleshooting](OPERATIONS.md#mysql-dump-failures).
+See [dump grants and troubleshooting](#mysql-dump-grants).
 
-This checkout's Arch console client was installed into ignored
-`Backend/artifacts/db-clients` because sudo requires interactive authentication.
-Official package signatures were verified, and the absolute wrapper path was saved
-in the existing private local settings without changing credentials. This local
-artifact is not shipped or portable to another machine; use a system installation
-or the Docker image for deployment.
+### MySQL dump grants
+
+Exports include routines, events and triggers. Check SELECT, SHOW VIEW, TRIGGER
+and EVENT grants on the selected database. Routine visibility can require a global
+metadata grant reviewed by the DBA:
+
+```sql
+-- MySQL 8.0.20+; replace both account placeholders.
+GRANT SHOW_ROUTINE ON *.* TO 'backup_user'@'allowed_client_host';
+-- MySQL 5.7 instead:
+GRANT SELECT ON mysql.proc TO 'backup_user'@'allowed_client_host';
+```
+
+The application detects client capabilities, forces TCP, disables supported column
+statistics, omits tablespaces and uses GTID_PURGED=OFF for logical per-database
+exports. It does not silently omit routines to report success. Bounded stderr
+becomes safe error categories; partial output is removed on failure. A connection
+test does not prove export grants or dump-client availability. Selected TLS
+verification is preserved; configure a trusted CA for the service/client as needed.
 
 ## PostgreSQL password connections
 
@@ -90,12 +103,9 @@ username/password authentication, so checks now explicitly disable GSS negotiati
 unchanged: verified TLS uses VerifyFull/verify-full; explicit TLS-off stays off.
 There is no automatic certificate bypass or downgrade.
 
-A read-only check of the existing saved PostgreSQL connection reproduced a timeout
-with default GSS negotiation and succeeded with GSS disabled using the same
-credentials. New safe errors distinguish DNS/TCP/timeouts, credentials/key-ring
-failures, TLS, PostgreSQL authentication, missing database and pg_hba.conf rejection.
-Provider exception text/SQL/passwords are never returned in these diagnostics.
-See [Npgsql transport defaults](https://www.npgsql.org/doc/security.html?tabs=tabid-2).
+Safe errors distinguish DNS/TCP/timeouts, credential/key-ring failures, TLS,
+authentication, missing database and pg_hba.conf rejection. Provider exception
+text, SQL and passwords are not returned in diagnostics.
 
 The export client must be at least as new as the PostgreSQL server major. The API
 image now installs pg_dump 18 from the signed official PostgreSQL apt repository,
@@ -179,7 +189,7 @@ a `backup_probe` database. It tests saved-credential connections, actual provide
 exports, encryption and authenticated recovery. RestoreSmoke's `artifact` mode
 restores only those disposable provider fixture archives and checks inventories
 and representative rows. SQL Server fixtures exercise native backup restoration.
-Actual results and remaining limitations are recorded in MIGRATION.md.
+Use these fixtures only with disposable data.
 
 On Linux with the selected database images already available, reproduce the fixture
 checks with:

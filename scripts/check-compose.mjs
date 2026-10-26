@@ -7,8 +7,19 @@ import { fileURLToPath } from "node:url";
 const repo = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const require = createRequire(join(repo, "Frontend/package.json"));
 const { chromium } = require("playwright");
+function option(name, fallback) {
+  const index = process.argv.indexOf(name);
+  if (index < 0) return fallback;
+  const value = process.argv[index + 1];
+  if (!value || value.startsWith("--")) throw new Error(`${name} requires a value.`);
+  return value;
+}
+const envFile = resolve(option("--env-file", join(repo, ".env")));
+const baseURL = option("--base-url", "https://localhost:18443");
+if (new URL(baseURL).protocol !== "https:")
+  throw new Error("Use an HTTPS test reverse proxy; production cookies are Secure.");
 const settings = Object.fromEntries(
-  readFileSync(join(repo, ".env"), "utf8")
+  readFileSync(envFile, "utf8")
     .split(/\r?\n/)
     .filter((l) => /^[A-Z_]+=/.test(l))
     .map((l) => {
@@ -21,6 +32,8 @@ function docker(args, input) {
     "docker",
     [
       "compose",
+      "--env-file",
+      envFile,
       "-p",
       "octobackup-check",
       "-f",
@@ -66,10 +79,14 @@ docker(
 const browser = await chromium.launch();
 try {
   const context = await browser.newContext({
-    ignoreHTTPSErrors: true,
-    baseURL: `https://localhost:${settings.FRONTEND_PORT || 8443}`,
+    ignoreHTTPSErrors: process.argv.includes("--ignore-https-errors"),
+    baseURL,
   });
   const page = await context.newPage();
+  let hubSocket;
+  page.on("websocket", (socket) => {
+    if (new URL(socket.url()).pathname === "/backuphub") hubSocket = socket;
+  });
   await page.goto("/");
   await page.getByLabel("Email address").fill(settings.ADMIN_EMAIL);
   await page
@@ -77,6 +94,9 @@ try {
     .fill(settings.ADMIN_PASSWORD);
   await page.getByRole("button", { name: "Sign in", exact: true }).click();
   await page.getByRole("heading", { name: "Backup overview" }).waitFor();
+  await page.getByRole("status").filter({ hasText: "Live updates" }).waitFor();
+  if (!hubSocket || new URL(hubSocket.url()).protocol !== "wss:")
+    throw new Error("Authenticated SignalR WebSocket did not connect through the edge.");
   const cookies = await context.cookies();
   if (
     !cookies.some(
@@ -196,7 +216,7 @@ try {
   if (!negotiate.ok())
     throw new Error("Authenticated SignalR negotiation failed.");
   console.log(
-    "HTTPS frontend, API login, Secure/HttpOnly cookie, CSRF and SignalR: OK",
+    "HTTPS frontend, API login, Secure/HttpOnly cookie, CSRF and SignalR WebSocket: OK",
   );
 } finally {
   await browser.close();

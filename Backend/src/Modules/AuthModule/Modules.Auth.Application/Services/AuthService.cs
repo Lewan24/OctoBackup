@@ -24,13 +24,28 @@ internal sealed class AuthService(
     public async Task<IResult> Login(HttpContext context, LoginRequest? request)
     {
         if (request is null || string.IsNullOrWhiteSpace(request.Email) || string.IsNullOrWhiteSpace(request.Password))
-            return Results.Unauthorized();
-        var user = await userManager.FindByEmailAsync(request.Email);
-        if (user is null || user.IsBlocked || !user.EmailConfirmed) return Results.Unauthorized();
+            return RejectLogin(context, "missing_credentials");
+        var user = await userManager.FindByEmailAsync(request.Email.Trim());
+        if (user is null) return RejectLogin(context, "account_not_found");
+        if (user.IsBlocked) return RejectLogin(context, "account_blocked");
+        if (!user.EmailConfirmed) return RejectLogin(context, "account_unconfirmed");
         var result = await signInManager.PasswordSignInAsync(user, request.Password, request.RememberMe, lockoutOnFailure: true);
-        if (!result.Succeeded) return Results.Unauthorized();
+        if (!result.Succeeded) return RejectLogin(context, result.IsLockedOut ? "account_locked_out"
+            : result.IsNotAllowed ? "sign_in_not_allowed" : "invalid_credentials");
         logger.LogInformation("User {UserId} signed in", user.Id);
         return Results.NoContent();
+    }
+
+    private IResult RejectLogin(HttpContext context, string reason)
+    {
+        // Account status is for deployment operators only. Keep browser failures
+        // uniform and never log submitted emails, passwords or cookies.
+        logger.LogWarning("Sign-in rejected: {Reason}. Trace {TraceId}", reason, context.TraceIdentifier);
+        return Results.Json(new {
+            code = "login_rejected",
+            title = "Sign-in failed. Check your email and password, or ask an administrator to check account access.",
+            traceId = context.TraceIdentifier
+        }, statusCode: StatusCodes.Status401Unauthorized);
     }
 
     public async Task<IResult> ChangePassword(HttpContext context, ChangePasswordRequest request)

@@ -48,7 +48,9 @@ export async function api<T = void>(
         : data && typeof data === "object" && "title" in data
           ? String(data.title)
           : response.status === 401
-            ? "Your session has ended. Sign in again."
+            ? path.replace(/\/+$/, "").toLowerCase() === "auth/login"
+              ? "Sign-in failed. Check your email and password, or ask an administrator to check account access."
+              : "Your session has ended. Sign in again."
             : response.status === 403
               ? "You do not have permission for this action."
               : response.status === 429
