@@ -9,29 +9,33 @@ From the repository root:
 ```sh
 node scripts/dev.mjs init
 # Add your public hostname to ALLOWED_HOSTS; keep localhost;127.0.0.1.
-docker compose pull
-docker compose up -d --wait
+docker compose up --build -d --wait
 docker compose logs -f api frontend
 ```
 
-Compose uses `lewan24/octobackup-api:latest` and `lewan24/octobackup-web:latest`.
-To build locally, use the two root-context build commands in the README, then run
-`docker compose up -d --wait`. Ordinary Compose services have no `build` section.
-For publishing on Linux or Windows, authenticate with `docker login`, then run
-`node scripts/build-and-push.mjs`. It builds both images before pushing and stops
-at the first failure. It resolves the repository root from its own location,
-including when called from another directory. `--build-only` skips pushes and
-`--dry-run` prints commands without contacting Docker. On Linux/WSL/Bash use
-`./buildAndPushDockerImages.sh`; on Windows PowerShell use
-`.\buildAndPushDockerImages.bat`. Both delegate to the same Node.js script and pass
-through its options. A `.bat` file cannot run directly in Bash: errors about
-`@echo`, `rem` or `call` indicate the Windows launcher was used in a Unix shell.
+`compose.yaml` is the complete production stack: it builds API/frontend images
+from the repository root, prepares restore engine images and starts the API only
+after Docker access and image preparation succeed. No production override is needed.
+The default tags are `lewan24/octobackup-api:latest` and
+`lewan24/octobackup-web:latest`; `API_IMAGE` / `WEB_IMAGE` can select your own tags.
+`pull_policy: build` ensures source changes are built when starting the project.
+To deploy images already built and published by you, use
+`docker compose up --no-build --pull never -d --wait` after pulling those tags.
+The standard API image includes Docker CLI; no Docker daemon runs inside it.
+
+Initialization creates `config/appsettings.Runtime.json` containing `{}` and detects
+the local Docker socket's numeric group ID in `.env`. Existing secrets and runtime
+settings are preserved. For an existing installation run `node scripts/dev.mjs init`
+again. If initializing away from the deployment host, set `RESTORE_DOCKER_GID`
+from `stat -c %g /var/run/docker.sock` **on that host**. `RESTORE_DOCKER_SOCKET`
+changes the host socket path (default `/var/run/docker.sock`). A missing group or
+socket stops deployment instead of silently starting an unavailable runtime.
 
 Both images use Linux containers. Docker Engine on Linux and Docker Desktop's
 Linux-container mode on Windows use the same Dockerfiles and Compose configuration.
-The helper checks the selected engine and rejects native Windows-container mode.
-CPU architecture follows that engine; the helper publishes a single architecture,
-not a combined amd64/arm64 manifest. A deployment needs a matching architecture
+Native Windows-container mode is unsupported. Socket paths and group permissions
+must match the Linux daemon host. CPU architecture follows the build engine;
+these commands do not publish a combined amd64/arm64 manifest. A deployment needs a matching architecture
 or configured emulation. See [Docker's Windows setup](https://docs.docker.com/desktop/setup/install/windows-install/).
 
 Both application containers run as non-root, with read-only roots, dropped
@@ -40,7 +44,7 @@ The API is not published. `/data` holds metadata, backups, runtime policies and 
 on the `octobackup-data` named volume. `docker compose down` preserves it;
 `docker compose down --volumes` deletes it.
 
-Optional overrides live in `deploy/`. Pass root `compose.yaml` first so paths,
+Provider-specific examples for attaching an external database network or sharing SQL Server staging live in `deploy/`; they are not required to run production restore tests. Pass root `compose.yaml` first so paths,
 build contexts and `.env` resolution remain rooted in the repository:
 
 ```sh
@@ -215,43 +219,64 @@ install tools or pull images. Failed tests require explicit retry.
 
 Storage, key/bootstrap values, HTTP bindings, host filtering, proxy trust and session
 security require restart. Environment/.env changes require container recreation.
-For editable Docker configuration, mount the directory so atomic editor saves work:
+The production Compose already mounts the configuration directory so atomic editor saves work:
 
 ```sh
-mkdir -p config
-cp Backend/docker/appsettings.Runtime.example.json config/appsettings.Runtime.json
-docker compose -f compose.yaml -f deploy/compose.config-reload.yaml up -d
+node scripts/dev.mjs init
+# Edit config/appsettings.Runtime.json; see Backend/docker/appsettings.Runtime.example.json.
 ```
 
-The override selects `/config/appsettings.Runtime.json` and enables polling.
+Compose selects `/config/appsettings.Runtime.json` and enables polling.
+The non-root container must be able to read this file and traverse its directory;
+the initializer uses directory mode 755 and file mode 644. Keep secrets in `.env`,
+not in this runtime file.
 The private config directory is ignored and excluded from builds. Later JSON edits
 need no rebuild. Preserve persisted admin policies and the key ring.
 
 ## Restore testing
 
-The standard Compose API disables Docker restore execution and has no daemon socket.
-SQLite snapshot validation has its separate `Sqlite:RestoreTestsEnabled` setting.
-To enable Docker tests, set `RESTORE_DOCKER_GID` in `.env` to the socket group ID
-(`stat -c %g /var/run/docker.sock` on Linux), then:
+Docker restore tests are enabled by default in the production `compose.yaml`.
+The API image contains Docker CLI, mounts the configured daemon socket and joins
+its numeric group. Do not add `privileged: true` or make the socket world-writable.
+Use a dedicated test host/VM: socket access delegates control of that daemon.
 
 ```sh
-docker compose -f compose.yaml -f deploy/compose.restore-tests.yaml up --build -d --wait
+node scripts/dev.mjs init
+docker compose up --build -d --wait
+docker compose exec api docker version
 ```
 
-This builds the `restore-runner` API target and delegates Docker daemon control.
-Use a dedicated test daemon/VM. Console deployments need Docker CLI and
-`RestoreTests__Enabled=true`; remote daemons require secure Docker CLI configuration.
-Never expose an unauthenticated Docker endpoint.
+`docker version` must show both Client and Server. `restore-images` is a one-shot
+service using the same API image, socket and runtime JSON. It merges the packaged
+image maps with runtime JSON and reads matching image environment overrides.
+It preloads every configured MySQL/MariaDB/PostgreSQL/SQL Server image, inspecting
+cached images first. The first deployment can download several GB and requires
+registry access, enough daemon disk space and images compatible with the host CPU.
+A failed pull/daemon connection fails preparation and prevents API startup; inspect
+`docker compose logs restore-images`, correct the cause and run Compose again.
+This service has no application data volume or bootstrap secrets.
 
-Preload the **exact configured image/tag/digest on the daemon used by the API**:
+If preparation reports `client version 1.52 is too new` with a daemon maximum
+of `1.41`, upgrade Docker Engine on the deployment host. As a temporary workaround,
+add `DOCKER_API_VERSION: "1.41"` to `x-restore-runtime` so both `restore-images`
+and `api` inherit it. This forces the CLI protocol and disables automatic API
+negotiation; use the daemon's actual supported version and remove the override
+after upgrading. The CLI included in the API image was checked with forced API
+1.41 against a newer daemon; this does not verify a full restore on an older host.
+
+The API still executes with `--pull=never`. If you change image maps at runtime,
+preload the exact new tag/digest on the same daemon before retrying a test:
 
 ```sh
-docker image pull mysql:8.4
 docker image pull postgres:18-alpine
 docker image inspect postgres:18-alpine
-# For a separately configured test context:
-docker --context restore-tests image pull mysql:8.4
+# Or rerun preparation after editing config/appsettings.Runtime.json:
+docker compose run --rm --no-deps restore-images
 ```
+
+Console deployments still need Docker CLI, secure configured daemon access and
+`RestoreTests__Enabled=true`; source-development defaults remain disabled.
+Never expose an unauthenticated Docker endpoint.
 
 Versioned image maps are `RestoreTests:PostgresImages:<major>`,
 `MySqlImages:<major.minor>` and `MariaDbImages:<major.minor>`. Recognized headers
@@ -267,6 +292,7 @@ dotnet build OctoBackup.sln
 dotnet test Backend/tests/OctoBackup.Tests
 npm test --prefix Frontend
 npm run build --prefix Frontend
+node --test scripts/deployment.test.mjs
 node Frontend/node_modules/@playwright/test/cli.js install chromium
 npm run test:e2e --prefix Frontend
 npm audit --prefix Frontend
@@ -329,11 +355,13 @@ separate provider fixtures are described in [database setup](DATABASE_CONNECTION
 - **Antiforgery cache-header warning:** token responses must use `no-cache, no-store`
   and `Pragma: no-cache`. The API sets those headers consistently. This warning in
   older images is not evidence that token validation failed.
-- **Restore worker unavailable:** the standard API image has no Docker CLI/socket.
-  Leave `RestoreTests:Enabled=false` unless using the `restore-runner` target and
-  configured dedicated daemon access. Setting it true alone cannot enable execution.
-  The warning includes a fixed safe reason, logs once per failure change and retries
-  durable work every 30 seconds. A recovery message confirms resumed processing.
+- **Restore worker unavailable:** rebuild/recreate the API with the current
+  production `compose.yaml`. Confirm `docker compose exec api docker version`
+  reports Client and Server, and inspect `docker compose logs restore-images`.
+  Missing CLI means an old API image; permission denied means the socket group or
+  mount is wrong. Setting `RestoreTests:Enabled=true` alone does not grant daemon
+  access. The worker logs once per failure change and retries durable work every
+  30 seconds. A recovery message confirms resumed processing.
 
 The repository's private `testcompose.yml`, when present, targets an HTTPS edge
 proxy with Secure cookies and Docker restores disabled. It includes loopback health

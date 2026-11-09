@@ -38,7 +38,7 @@ public sealed class RestoreTestWorker(IServiceScopeFactory scopes, ILogger<Resto
                     : "Restore work could not access its metadata or runtime. Check storage permissions and deployment configuration.";
                 retryDelay = TimeSpan.FromSeconds(30);
                 if (reason != previousFailure)
-                    logger.LogWarning("Restore test worker unavailable: {Reason} Durable work will retry every 30 seconds. Use the restore-runner image and configured daemon access, or disable RestoreTests:Enabled.", reason);
+                    logger.LogWarning("Restore test worker unavailable: {Reason} Durable work will retry every 30 seconds. Check the API image, Docker socket mount and socket group in compose.yaml, or disable RestoreTests:Enabled.", reason);
                 previousFailure = reason;
                 try
                 {

@@ -15,7 +15,7 @@ flowchart LR
     API --> Metadata[(SQLite metadata)]
     API --> Files[(Backups + Data Protection keys)]
     API --> Sources[Database providers / verified SSH]
-    API -. deployment opt-in .-> Runner[Disposable restore containers]
+    API --> Runner[Disposable restore containers]
 ```
 
 The public edge owns TLS certificates, HTTPS redirects and HSTS. The frontend

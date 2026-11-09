@@ -70,8 +70,11 @@ a narrow deployment-owned mount outside app data; no SSH or arbitrary paths.
 Read-only SQLite validation disables extensions/trusted schema and runs in-process.
 SQL Server staging is a separate share; never expose metadata or keys to the source.
 
-Docker restore testing is explicit opt-in. The standard API has no socket; the
-runner target requires privileged daemon access. Use a dedicated daemon/VM.
+Production Compose enables Docker restore testing by default. The standard API
+includes Docker CLI and receives the daemon socket plus its numeric group. This
+grants privileged daemon control; use a dedicated host/VM. An image-preparation
+service preloads configured engine images before API startup and has no app data
+or bootstrap secrets. Console/source defaults remain disabled.
 Restore containers have no network/ports/host mounts, bounded resources, read-only
 roots, explicit minimal capabilities and no-new-privileges. Images are deployment
 owned and preloaded; dump metadata cannot select arbitrary commands/images.

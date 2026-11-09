@@ -28,7 +28,7 @@
         <mxCell id="ssh" value="Verified SSH gateway&#10;Exact host allowlists + SHA256 pins" style="rounded=1;whiteSpace=wrap;html=0;fillColor=#102b49;strokeColor=#4c77a1;fontColor=#edf5ff;fontSize=17;fontFamily=Helvetica;spacing=12;" vertex="1" parent="1">
           <mxGeometry x="40" y="410" width="250" height="130" as="geometry" />
         </mxCell>
-        <mxCell id="tests" value="Opt-in restore runtime&#10;Dedicated Docker daemon&#10;Networkless, bounded containers" style="rounded=1;whiteSpace=wrap;html=0;fillColor=#392e52;strokeColor=#4c77a1;fontColor=#edf5ff;fontSize=17;fontFamily=Helvetica;spacing=12;" vertex="1" parent="1">
+        <mxCell id="tests" value="Default restore runtime&#10;Dedicated Docker daemon&#10;Networkless, bounded containers" style="rounded=1;whiteSpace=wrap;html=0;fillColor=#392e52;strokeColor=#4c77a1;fontColor=#edf5ff;fontSize=17;fontFamily=Helvetica;spacing=12;" vertex="1" parent="1">
           <mxGeometry x="740" y="670" width="300" height="120" as="geometry" />
         </mxCell>
         <mxCell id="notes" value="Production cookies remain Secure. The frontend overwrites forwarded scheme/address; the API trusts its explicit IP only.&#10;Keep CRYPTO_KEY and recovery passwords outside the browser; preserve the entire data volume and key ring." style="rounded=1;whiteSpace=wrap;html=0;fillColor=#0d2034;strokeColor=#4c77a1;fontColor=#edf5ff;fontSize=17;fontFamily=Helvetica;spacing=12;" vertex="1" parent="1">
@@ -52,7 +52,7 @@
         <mxCell id="e5" value="Optional tunnel" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=0;endArrow=block;strokeColor=#86b8ec;fontColor=#c6dcf5;fontSize=14;labelBackgroundColor=#07111f;dashed=1;" edge="1" parent="1" source="db" target="ssh">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-        <mxCell id="e6" value="Deployment opt-in" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=0;endArrow=block;strokeColor=#86b8ec;fontColor=#c6dcf5;fontSize=14;labelBackgroundColor=#07111f;dashed=1;" edge="1" parent="1" source="api" target="tests">
+        <mxCell id="e6" value="Production default" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=0;endArrow=block;strokeColor=#86b8ec;fontColor=#c6dcf5;fontSize=14;labelBackgroundColor=#07111f;dashed=1;" edge="1" parent="1" source="api" target="tests">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
       </root>

@@ -14,13 +14,14 @@ RUN apt-get update \
     && curl --fail --silent --show-error https://www.postgresql.org/media/keys/ACCC4CF8.asc -o /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc \
     && echo 'deb [signed-by=/usr/share/postgresql-common/pgdg/apt.postgresql.org.asc] https://apt.postgresql.org/pub/repos/apt noble-pgdg main' > /etc/apt/sources.list.d/pgdg.list \
     && apt-get update \
-    && apt-get install -y --no-install-recommends mysql-client postgresql-client-18 \
-    && mysqldump --version && pg_dump --version \
+    && apt-get install -y --no-install-recommends mysql-client postgresql-client-18 docker.io jq \
+    && mysqldump --version && pg_dump --version && docker --version \
     && rm -rf /var/lib/apt/lists/* \
     && mkdir -p /data/Config /data/Backups /data/keys \
     && chown -R app:app /data
 WORKDIR /app
 COPY --from=build --chown=app:app /out/ ./
+COPY Backend/docker/prepare-restore-images.sh /app/prepare-restore-images.sh
 ENV ASPNETCORE_ENVIRONMENT=Production ASPNETCORE_HTTP_PORTS=8080 OCTOBACKUP_DATA=/data
 EXPOSE 8080
 HEALTHCHECK --interval=15s --timeout=5s --start-period=30s --retries=5 \
@@ -28,12 +29,8 @@ HEALTHCHECK --interval=15s --timeout=5s --start-period=30s --retries=5 \
 USER app
 ENTRYPOINT ["dotnet", "Server.Api.dll"]
 
-# Explicit opt-in build for deployments that delegate a dedicated Docker daemon.
+# Compatibility alias for older deployment build commands. All API images now
+# include the Docker client; the daemon remains external to this container.
 FROM runtime AS restore-runner
-USER root
-RUN apt-get update \
-    && apt-get install -y --no-install-recommends docker.io \
-    && rm -rf /var/lib/apt/lists/*
-USER app
 
 FROM runtime AS final

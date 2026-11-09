@@ -200,9 +200,10 @@ against export-worker retention.
 
 ### Runtime, isolation and compatibility
 
-The standard API image has no Docker access. Explicitly enable the opt-in runtime
-as described in [OPERATIONS.md](OPERATIONS.md#restore-testing). Image references
-and resource limits are deployment-owned. Images must be preloaded (`--pull=never`);
+Production Compose includes Docker CLI, socket access and restore execution by
+default, as described in [OPERATIONS.md](OPERATIONS.md#restore-testing). Its
+`restore-images` service preloads every configured image before API startup.
+Image references and resource limits are deployment-owned. Execution uses `--pull=never`;
 prefer release-reviewed digests. No browser input selects images or commands.
 
 Runtime resource settings under `RestoreTests`:

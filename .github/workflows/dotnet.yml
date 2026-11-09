@@ -22,6 +22,7 @@ jobs:
       - run: dotnet restore OctoBackup.sln
       - run: dotnet build OctoBackup.sln --no-restore
       - run: dotnet test Backend/tests/OctoBackup.Tests --no-build
+      - run: node --test scripts/deployment.test.mjs
       - run: npm ci --prefix Frontend
       - run: npm audit --prefix Frontend
       - run: npm test --prefix Frontend

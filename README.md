@@ -25,19 +25,27 @@ Optional global or individual passwords encrypt new backups. Authorized users ca
 
 ## Quick start
 
-Run all commands from the repository root. Docker deployments require Docker Engine/Compose and Node.js for the initialization helper. Source development also requires the .NET 10 SDK selected by `global.json` and Node.js 22.12+.
+Run all commands from the repository root. Docker deployments require Docker Engine with Compose/Buildx and Node.js for the initialization helper. Source development also requires the .NET 10 SDK selected by `global.json` and Node.js 22.12+.
 
 ### Docker behind your reverse proxy
 
 ```sh
 node scripts/dev.mjs init
-docker compose pull
-docker compose up -d --wait
+docker compose up --build -d --wait
 ```
 
 The private `.env` contains `ADMIN_EMAIL`, `ADMIN_PASSWORD` and a stable `CRYPTO_KEY`. Initialization preserves existing secrets. Add your public hostname to `ALLOWED_HOSTS` before starting, keeping
 `localhost;127.0.0.1` for the container health probe. For example:
 `ALLOWED_HOSTS=backups.example.com;localhost;127.0.0.1`.
+
+One production file, `compose.yaml`, includes Docker restore testing by default.
+Initialization detects `RESTORE_DOCKER_GID` from the local socket and creates the
+editable `config/appsettings.Runtime.json`. When preparing on another machine,
+set the group ID from `stat -c %g /var/run/docker.sock` on the deployment host.
+The `restore-images` service preloads all configured engine images before API
+startup; the first run can download several GB. Docker socket access grants daemon
+control, so deploy on a dedicated host/VM. [Restore runtime](docs/OPERATIONS.md#restore-testing).
+Older Docker hosts may require a temporary API-version override; see that guide.
 
 Point your **HTTPS reverse proxy** at **http://127.0.0.1:8080** and enable WebSocket forwarding. Open your public HTTPS URL to sign in. Both application containers use HTTP internally; neither needs a certificate. The API stays private. Production cookies require HTTPS in the browser.
 
@@ -79,17 +87,23 @@ docker build -f Frontend/Dockerfile -t lewan24/octobackup-web:latest .
 docker compose up -d --wait
 ```
 
-Use the same publishing command on **Linux and Windows** (Node.js required):
+To publish the locally built tags:
 
-It builds both images before pushing, uses the repository root from any current
-directory.
+```sh
+docker login
+docker push lewan24/octobackup-api:latest
+docker push lewan24/octobackup-web:latest
+```
+
+Use your registry names consistently in build commands and `API_IMAGE` / `WEB_IMAGE`
+when publishing under another account.
 
 The images are Linux containers. Run them with Docker Engine on Linux or
 [Docker Desktop in Linux-container mode on Windows](https://docs.docker.com/desktop/setup/install/windows-install/).
 The selected Docker daemon determines the CPU architecture; publishing does not
 create a multi-architecture manifest. Native Windows-container mode is unsupported.
-Compose consumes these image tags; `docker compose up --build` alone does not build
-the standard images.
+Compose builds both application images from source by default. For previously
+pulled images, use `docker compose up --no-build --pull never -d --wait`.
 
 For a console publish and frontend bundle:
 
@@ -110,7 +124,7 @@ password in an existing volume.
 2. In **Servers**, create a connection and test it. Assign operators access where needed. Database TLS and verified SSH fingerprints are independent of the web reverse proxy.
 3. Choose an individual backup password or enable global encryption in **Application settings**. Encryption starts disabled; keep recovery passwords outside the application.
 4. Select **Queue backup**, or create a schedule. Follow the queue until it succeeds; acceptance is not completion. One export runs at a time.
-5. Open **Backup history** to download an archive or choose **Test / preview**. Docker restore tests require deployment opt-in and preloaded compatible engine images.
+5. Open **Backup history** to download an archive or choose **Test / preview**. The production stack enables Docker restore tests and prepares compatible engine images automatically.
 
 Keep the complete `/data` volume, Data Protection keys and external `CRYPTO_KEY` in your recovery plan. Use one API replica per data directory. SQL Server needs shared staging; SQLite needs a narrow source mount. [Backup and recovery details](docs/BACKUPS.md).
 
@@ -123,15 +137,15 @@ flowchart LR
     Web -->|HTTP / scoped events| API[.NET API :8080]
     API --> Data[(SQLite metadata / backups / keys)]
     API --> Sources[(Database targets / SSH)]
-    API -. opt-in .-> Tests[Isolated restore containers]
+    API --> Tests[Isolated restore containers]
 ```
 
 | Path | Contents |
 | --- | --- |
 | `Backend/` | API, modules, tests, recovery tool and Dockerfile |
 | `Frontend/` | React features, Nginx proxy, tests and Dockerfile |
-| `deploy/` | Optional Compose overrides; merge after root `compose.yaml` |
-| `scripts/` | Development launcher, image publishing and disposable smoke checks |
+| `deploy/` | Optional provider network and SQL Server staging examples |
+| `scripts/` | Development launcher, deployment tests and disposable smoke checks |
 | `docs/` | Focused reference guides and editable architecture diagrams |
 
 ## Test
@@ -143,6 +157,7 @@ dotnet build OctoBackup.sln
 dotnet test Backend/tests/OctoBackup.Tests
 npm test --prefix Frontend
 npm run build --prefix Frontend
+node --test scripts/deployment.test.mjs
 node Frontend/node_modules/@playwright/test/cli.js install chromium
 npm run test:e2e --prefix Frontend
 npm audit --prefix Frontend

@@ -34,7 +34,8 @@ public sealed class RestoreWorkerDeploymentTests
         {
             var warning = await logger.Warning.Task.WaitAsync(TimeSpan.FromSeconds(5));
             Assert.Contains("30 seconds", warning);
-            Assert.Contains("restore-runner", warning);
+            Assert.Contains("compose.yaml", warning);
+            Assert.Contains("socket group", warning);
             Assert.Contains("RestoreTests:Enabled", warning);
             if (safeFailure) Assert.Contains("Docker CLI is unavailable", warning);
             Assert.DoesNotContain("private-provider-password", warning);
