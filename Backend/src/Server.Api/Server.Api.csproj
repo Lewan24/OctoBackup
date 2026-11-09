@@ -6,6 +6,7 @@
     <UserSecretsId>4e9c2df1-841b-4144-9dcf-2a5fcf06f490</UserSecretsId>
   </PropertyGroup>
   <ItemGroup>
+    <Content Update="appsettings.Runtime.json" CopyToOutputDirectory="Never" CopyToPublishDirectory="Never" />
     <Content Update="appsettings.Local.json" CopyToOutputDirectory="Never" CopyToPublishDirectory="Never" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.13">
       <PrivateAssets>all</PrivateAssets>

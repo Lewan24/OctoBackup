@@ -1,94 +1,106 @@
-# Security model and verification
+# Security model
 
-This is an OWASP Top 10 hardening implementation, not a certification or a claim
-that every possible vulnerability has been eliminated. Threat model: untrusted
-browser input, cross-site requests, compromised operator accounts and database
-connections configured by trusted deployment/application administrators. Host OS,
-container runtime and external databases remain separate trust boundaries.
+Trust boundaries include untrusted browsers, operator accounts, administrator-owned
+connection configuration, database hosts, the container runtime and host storage.
+The controls below do not constitute a penetration test or security certification.
 
-The mapping follows [OWASP Top 10:2025](https://owasp.org/Top10/2025/).
+## Web transport and sessions
 
-| Category | Implemented controls | Verification / operational limits |
-| --- | --- | --- |
-| A01 Broken access control | Authenticated route groups; explicit role policies (case-insensitive routes included); admin filters; server ownership checks for backup/test/download; source and destination checks for schedule moves; approved hostnames; no public container execution | API cross-user/admin tests. Hostname allowlists need network egress restrictions to mitigate DNS rebinding and constrain ports/private networks. |
-| A02 Security misconfiguration | Same-origin frontend proxy, explicit trusted proxy IPs, no permissive CORS, strict HttpOnly cookies, HTTPS/HSTS in production, CSP and security headers, host filtering, no bundled certificate/private key | Production requires TLS configuration and explicit hosts. Development HTTP is loopback-only by run configuration. |
-| A03 Software supply chain failures | Lockfile-backed npm installs, NuGet vulnerability warnings fail restore/build, patched SSH/SQLite/crypto/email dependencies, CI audits | Re-run audits regularly; new advisories can appear after this change. Container images must also be scanned and pinned by release automation. |
-| A04 Cryptographic failures | AES-GCM new secrets; random nonces; fail-closed tamper detection; private environment key; SSH SHA256 pins; verified database TLS defaults; persistent cookie keys | Legacy CBC reads remain for existing data. Backups and cookie key files rely on filesystem/volume encryption and permissions. |
-| A05 Injection | EF queries, provider connection builders, argument-list process execution, environment-only dump passwords, escaped SQL Server identifier and parameterized file path, constrained database/path segments, React text escaping | Dump processes still require trusted binaries on PATH. Protect OS process environments from other users. |
-| A06 Insecure design | Admin-managed connection configuration, explicit unsupported operations, write-only secrets, serialized backups, retention only after durable replacement; opt-in isolated restore tests with scoped saved samples and deployment-owned version mappings | Single process deployment; no distributed job queue. Restore runtime requires dedicated trusted Docker access; native SQL Server and broader schema/version validation remain pending. See RESTORE_TESTING.md. |
-| A07 Authentication failures | Identity password hashing, 12-character password policy, login lockout, per-IP rate limiting, uniform login failures, admin-managed registration/confirmation, bootstrap admin only on an empty user store, password reauthentication for email changes | Initial appsettings enable registration/auto-confirmation; saved admin settings take precedence. MFA, recovery and proof of mailbox ownership are not implemented. |
-| A08 Software/data integrity failures | CSRF on all API mutations including login; authenticated SignalR with no client publish methods; payload-free scoped events; filesystem root/symlink checks | OS write access to backup storage is trusted. Add backup checksums and signed provenance in a later phase. |
-| A09 Security logging/alerting failures | Login and admin/service events; structured exception logs with trace IDs; error responses hide stack traces and provider secrets | External collection, retention, alert rules and delivery are deployment responsibilities; no claim of a built-in SOC/alert service. |
-| A10 Mishandling exceptional conditions | Problem responses, bounded request bodies and dump timeouts, concurrent stderr drain, durable failed-job status and explicit retry, partial dump cleanup, loading/error/pending UI states | Provider outage, disk-full and complete restore drills still require operational testing. |
+- The deployment edge terminates HTTPS, owns certificates and redirects HTTP. Both application containers use private HTTP without certificates or HTTPS middleware.
+- Nginx overwrites forwarded scheme/address; the API accepts one forwarding hop from explicit trusted IPs. Do not enable unrestricted forwarded-header trust.
+- Production session and CSRF cookies are Secure, HttpOnly and SameSite Strict by default. Local HTTP uses Development; the explicit startup option `Security:AllowInsecureHttp=true` removes Secure for isolated private HTTP testing. Keep it false for public deployments. Browser CSRF request tokens stay in memory; no second auth token or localStorage secrets exist.
+- Every API mutation, including login, requires CSRF. Same-origin requests need no permissive CORS.
+- CSP, content-type/frame/referrer/permissions headers and host filtering apply. The edge supplies HSTS.
+- Identity uses a 12-character password policy, lockout and per-IP rate limits. Each authenticated request rechecks blocked/confirmed state and security stamp.
+- In the default two-proxy chain, API rate limits group clients by edge address. Apply client-IP limits at the public edge; do not trust caller-supplied address headers.
 
-## Session and browser rules
+## Authorization and network policy
 
-Queue mutations require authentication and CSRF. Administrators manage every job;
-operators manage their own requests and scheduled requests on assigned servers.
-Assigned peers may view but cannot cancel another operator's manual job. Execution
-rechecks current account status, assignments, approved hosts and unchanged target.
-Listings are paginated and scoped; unauthorized request details, credentials and
-physical artifact paths are never returned. Admission caps active jobs at 1,000.
-Database uniqueness prevents simultaneous requests for the same target. Running
-cancellation propagates to dump processes, compression and provider calls; synchronous
-SSH setup can delay acknowledgement until its bounded timeout. Remote SQL Server
-cleanup and hard-crash orphan cleanup require operational inspection. Remove keeps
-hidden audit rows rather than deleting evidence or completed backup files.
+Connection configuration and user/policy administration require the Admin role.
+Backup/download/restore/schedule actions require current server access. Queue owners
+and administrators manage manual requests; assigned peers cannot cancel another
+operator's manual work. Scheduled requests follow assignment rules. Execution
+rechecks account, assignments, unchanged target and approved destinations.
 
-- Browser credentials live only in HttpOnly cookies. No tokens/passwords are stored
-  in localStorage. CSRF tokens stay in memory and reset when identity changes.
-- Every authenticated HTTP request rechecks blocked/confirmed state and security
-  stamp. Password/admin account changes invalidate old cookies.
-- Existing SignalR connections cannot execute commands or receive secrets, but a
-  previously established connection may receive invalidations until disconnected;
-  follow-up work should add periodic hub identity revalidation.
-- Administrator privileges are never granted by matching a registration email.
-  Bootstrap credentials are only consumed when there are no users.
-- Cookie data-protection keys are persisted under the data directory. Restrict
-  directory permissions and encrypt volumes. Do not share keys with other apps.
+Exact database/SSH hostname/IP allowlists reject URLs, wildcards, paths and ports.
+Empty means deny all. Removing a host blocks subsequent operations on existing
+connections; active operations can finish. DNS approval does not prevent rebinding
+or constrain ports/private-network destinations: use host/container egress controls.
+Preserve database CA verification and verified SSH SHA256 pins. Web certificate
+removal does not change either provider safeguard.
 
-## Upgrading an existing installation
+SignalR exposes authenticated payload-free invalidations scoped to affected users
+and administrators. Clients cannot publish. Existing connections may receive
+invalidations until disconnected after account changes; periodic principal
+revalidation remains proposed work.
 
-Runtime administration settings are restricted to authenticated Admin-role users
-and CSRF-protected writes. Values have bounded ranges and exact host validation;
-wildcards, URLs, paths and ports are rejected. Host removal is enforced before new
-manual/scheduled backup and connection-test execution, including existing records.
-Running jobs retain their original operation. DNS/IP approval does not replace
-network egress controls or SSH pins. Concurrent edits use revisions and atomic
-persistence. Logs record actor/revision and policy values, never secrets. Startup
-settings (keys, storage, TLS/proxies) are not writable through this API.
+## Secrets and backup data
 
-Dump-tool errors are classified into fixed actionable messages; raw stderr is
-discarded after bounded capture and never attached to logs/API errors. Database
-passwords remain environment-only. Failed exports remove partial output, including
-process-start failures and timeouts. MySQL backup options retain routines/events,
-avoid granting global flush privileges for per-database archives, and never weaken
-requested TLS verification or retry by dropping schema objects.
+New database/SSH secrets and backup keys use purpose-isolated Data Protection.
+Legacy GCM/CBC secrets remain readable with the external `CRYPTO_KEY`. Login
+passwords are hashed. Secrets are write-only in forms; blank edit values preserve
+existing credentials. API responses do not expose passwords or physical backup paths.
 
-Local Development creates a private ignored `appsettings.Local.json` with a random
-key/bootstrap password, importing an existing repository `.env` key when available.
-It never replaces an existing local file and refuses to invent a new key for an
-existing SQLite store. User-secrets, environment and CLI values retain precedence.
-This file is excluded from publishing and Docker builds; Production ignores it
-and requires explicitly supplied secrets. Protect local file permissions and keep
-the key with your recovery material.
+Global backup encryption starts disabled. Individual passwords apply independently.
+Encrypted artifacts use authenticated chunked AES-256-GCM; historical key versions
+remain for downloads/tests. Decrypted downloads also require the original artifact
+password. Resetting a key affects future files. [Format and recovery](BACKUPS.md).
 
-Back up the SQLite file, backups directory, current encryption key and cookie keys
-before deployment. Test the upgrade on a copy. The old repository included a
-development AES key and TLS certificate: treat any installation using them as
-compromised secrets. Generate a private TLS certificate and rotate database/SSH
-credentials. To change `CRYPTO_KEY`, re-encrypt existing stored secrets with the old
-key before switching; simply replacing the variable makes old secrets unreadable.
-A dedicated offline rekey utility is still planned. Do not reuse repository history
-as a secret store.
+Preserve the entire data directory, key ring, external key and recovery passwords.
+Linux filesystem Data Protection keys are not automatically encrypted at rest.
+Restrict permissions and encrypt storage. Exports, SQL Server staging, decrypted
+work files and saved preview samples can contain plaintext. Errors clean up partial
+work; hard crashes can leave orphans. Preview/audit rows outlive artifact retention.
 
-The application authenticates administrators but does not validate ownership of a
-new email mailbox. Keep accounts under administrative control until verified email
-flows and recovery are implemented. Do not enable public auto-confirm registration.
+Never rotate `CRYPTO_KEY` by simply replacing its value on an existing store. Legacy
+credentials require migration with the old key first. If an older deployment used
+public development keys, rotate affected credentials through a reviewed migration.
+Do not reuse repository history as a secret store.
 
-## Reporting a vulnerability
+## Input and execution boundaries
+
+EF/provider parameterization, argument-list processes, escaped SQL Server database
+identifiers and parameterized destinations constrain injection. Dump passwords are
+passed through process environments rather than command-line arguments. Protect
+service-account process access. Raw SQL, provider output and credentials never
+enter public diagnostics; stderr capture is bounded and classified.
+
+File destinations reject traversal and symlinks. SQLite sources are restricted to
+a narrow deployment-owned mount outside app data; no SSH or arbitrary paths.
+Read-only SQLite validation disables extensions/trusted schema and runs in-process.
+SQL Server staging is a separate share; never expose metadata or keys to the source.
+
+Production Compose enables Docker restore testing by default. The standard API
+includes Docker CLI and receives the daemon socket plus its numeric group. This
+grants privileged daemon control; use a dedicated host/VM. An image-preparation
+service preloads configured engine images before API startup and has no app data
+or bootstrap secrets. Console/source defaults remain disabled.
+Restore containers have no network/ports/host mounts, bounded resources, read-only
+roots, explicit minimal capabilities and no-new-privileges. Images are deployment
+owned and preloaded; dump metadata cannot select arbitrary commands/images.
+[Isolation and compatibility limits](BACKUPS.md#restore-testing).
+
+## Deployment and maintenance
+
+Development can generate ignored private local settings only for a fresh store;
+Production ignores/excludes them and requires supplied secrets. Runtime JSON reload
+retains last-valid data, omits values from parser warnings and freezes startup key,
+storage and web security settings until restart. Admin snapshots use bounded
+validation, revisions and atomic persistence.
+
+Use one API replica per store. Back up before migrations and practice recovery on a
+copy. Container roots are read-only and non-root. Keep host, dump clients and engine
+images patched; audit npm/NuGet dependencies and scan/pin release images. CI/API/
+browser tests do not replace deployment fault injection or provider restore drills.
+
+Review registration and automatic confirmation before exposing a deployment; the
+base configuration enables both. Mailbox ownership, MFA, password recovery and
+email delivery are not implemented. Keep sign-ups administrator controlled where
+those guarantees are required. Bootstrap only creates an administrator on an empty
+user store; matching a registration email never grants administrator privileges.
+
+## Reporting vulnerabilities
 
 Report privately to the repository maintainer through the hosting platform's private
-security advisory facility where available. Avoid posting credentials or backup
-contents in public issues. Do not assume this repository provides a monitored
-incident-response mailbox.
+security advisory facility where available. Do not post credentials or backup data
+in public issues. No monitored incident-response mailbox is promised by this repository.

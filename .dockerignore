@@ -18,3 +18,8 @@ docs
 scripts
 .env.*
 **/appsettings.Local.json
+
+**/appsettings.Runtime.json
+config
+
+deploy

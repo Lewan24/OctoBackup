@@ -32,12 +32,31 @@ public sealed class RestoreCompatibilityTests
     }
 
     [Fact]
+    public void MariaDbClientExportingMySql_SelectsTheMySqlSourceImage()
+    {
+        var profile = RestoreArchiveProfile.FromHeader(new BackupTest { DatabaseType = DatabaseType.MySql },
+            "-- MariaDB dump 10.20-13.0.2-MariaDB\n-- Server version\t8.4.13\n-- Current Database: `backup_probe`\n", new ConfigurationBuilder().Build());
+        Assert.False(profile.MariaDb); Assert.Equal("mysql:8.4", profile.Image); Assert.Equal("8.4",profile.MySqlRelease);
+    }
+
+    [Fact]
     public void VersionMappingsAreDeploymentOwned_AndUnknownMajorsFailBeforeContainerCreation()
     {
         var config = new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?> { ["RestoreTests:PostgresImages:17"] = "private/approved@sha256:deployment" }).Build();
         var test = new BackupTest { DatabaseType = DatabaseType.PostgreSql };
         Assert.Equal("private/approved@sha256:deployment", RestoreArchiveProfile.FromHeader(test, "-- Dumped by pg_dump version 17.6\n", config).Image);
         Assert.Throws<RestoreTestException>(() => RestoreArchiveProfile.FromHeader(test, "-- Dumped by pg_dump version 99.1\n", config));
+    }
+
+    [Theory]
+    [InlineData("8.3.2", "MySQL", "RestoreTests:MySqlImages:8.3")]
+    [InlineData("12.7.1-MariaDB", "MariaDB", "RestoreTests:MariaDbImages:12.7")]
+    public void MissingMapping_ReportsOnlyTheDetectedNumericVersionAndExactSetting(string version,string family,string setting)
+    {
+        var error=Assert.Throws<RestoreTestException>(()=>RestoreArchiveProfile.FromHeader(new BackupTest { DatabaseType=DatabaseType.MySql },
+            $"-- MySQL dump 10.13\n-- Server version {version} private-secret\n",new ConfigurationBuilder().Build()));
+        Assert.Contains(family,error.Message); Assert.Contains(version.Split('-')[0],error.Message);
+        Assert.Contains(setting,error.Message); Assert.DoesNotContain("private-secret",error.Message);
     }
 
     [Theory]

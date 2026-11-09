@@ -4,6 +4,7 @@ namespace Modules.Backup.Shared.Dtos;
 
 public class PerformedBackupDto
 {
+    public bool IsEncrypted { get; set; }
     public Guid Id { get; set; } = Guid.CreateVersion7();
     public string? Name { get; set; }
     public DateTime CreatedOn { get; set; }

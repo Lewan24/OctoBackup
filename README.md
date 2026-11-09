@@ -1,125 +1,193 @@
+<div align="center">
+
 # OctoBackup
 
-[Po polsku](docs/README_PL.md)
+**Database backups. One workspace. Your infrastructure.**
 
-Self-hosted database backup management with a **.NET 10 API** and **React +
-TypeScript frontend**. Manage connections, server access, schedules and backup
-history from a compact dark operations dashboard with violet gradients, lime
-actions and responsive layouts for technical teams.
+Self-hosted backup management with a .NET 10 API and React / TypeScript frontend.
 
-Manual and scheduled backups enter a persistent queue with live status, duplicate
-prevention and cancel/remove actions. Requests wait 20 seconds by default; admins
-can configure the cancellation window and spacing in Application settings.
+[Quick start](#quick-start) · [Usage](#everyday-usage) · [Documentation](#documentation) · [Roadmap](#roadmap) · [Polski](docs/README_PL.md)
 
-## Get started
+</div>
 
-Requirements: Docker Desktop (Linux containers), or .NET SDK 10.0.302+ and Node.js
-22.12+ for console development.
+---
 
-```powershell
+Manage database connections, access, scheduled exports and backup history from one responsive dashboard. Manual and scheduled backups share a persistent queue with cancellation, duplicate prevention and visible results.
+
+| Database | Backup format | Requirements |
+| --- | --- | --- |
+| MySQL / MariaDB | SQL dump in ZIP | Compatible dump client and export grants |
+| PostgreSQL | SQL dump in ZIP | `pg_dump` at least as new as the source major |
+| SQL Server | Native `.bak` | Dedicated staging filesystem shared with the API |
+| SQLite | Online `.sqlite` snapshot | Approved local source mount |
+
+Optional global or individual passwords encrypt new backups. Authorized users can download files and request saved restore-test previews when the deployment runtime is enabled. A preview samples restored data; it does not prove a complete disaster recovery.
+
+## Quick start
+
+Run all commands from the repository root. Docker deployments require Docker Engine with Compose/Buildx and Node.js for the initialization helper. Source development also requires the .NET 10 SDK selected by `global.json` and Node.js 22.12+.
+
+### Docker behind your reverse proxy
+
+```sh
 node scripts/dev.mjs init
-```
-
-This creates a private, ignored `.env` with random keys and passwords. Existing
-settings are preserved. Sign-in credentials are `ADMIN_EMAIL` / `ADMIN_PASSWORD`
-in that file.
-
-**Both applications in Docker:**
-
-```powershell
 docker compose up --build -d --wait
 ```
 
-Open **https://localhost:8443**. The default local certificate is self-signed; mount
-your trusted certificate/key in `certs/` to replace it. React/Nginx proxies the
-private API and SignalR on the same browser origin.
+The private `.env` contains `ADMIN_EMAIL`, `ADMIN_PASSWORD` and a stable `CRYPTO_KEY`. Initialization preserves existing secrets. Add your public hostname to `ALLOWED_HOSTS` before starting, keeping
+`localhost;127.0.0.1` for the container health probe. For example:
+`ALLOWED_HOSTS=backups.example.com;localhost;127.0.0.1`.
 
-**Only databases in Docker, applications in the console:**
+One production file, `compose.yaml`, includes Docker restore testing by default.
+Initialization detects `RESTORE_DOCKER_GID` from the local socket and creates the
+editable `config/appsettings.Runtime.json`. When preparing on another machine,
+set the group ID from `stat -c %g /var/run/docker.sock` on the deployment host.
+The `restore-images` service preloads all configured engine images before API
+startup; the first run can download several GB. Docker socket access grants daemon
+control, so deploy on a dedicated host/VM. [Restore runtime](docs/OPERATIONS.md#restore-testing).
+Older Docker hosts may require a temporary API-version override; see that guide.
 
-```powershell
-docker compose -f compose.dbs.yaml up -d --wait
+Point your **HTTPS reverse proxy** at **http://127.0.0.1:8080** and enable WebSocket forwarding. Open your public HTTPS URL to sign in. Both application containers use HTTP internally; neither needs a certificate. The API stays private. Production cookies require HTTPS in the browser.
+
+For **isolated private HTTP testing**, set `ALLOW_INSECURE_HTTP=true` in `.env`,
+recreate the API, then open `http://<host>:<FRONTEND_PORT>`. This explicitly removes
+Secure from session/CSRF cookies; keep it false for public HTTPS deployments.
+CSRF validation remains required in both modes. [Login troubleshooting](docs/OPERATIONS.md#login-and-runtime-troubleshooting).
+
+`FRONTEND_PORT` changes the host upstream port; existing `.env` files keep their previous value. If your proxy runs in Docker, attach it to the frontend network and use `frontend:8080`; see the [deployment guide](docs/OPERATIONS.md#reverse-proxy).
+
+### Run from source
+
+```sh
+node scripts/dev.mjs init
 dotnet restore OctoBackup.sln
 npm ci --prefix Frontend
 node scripts/dev.mjs
 ```
 
-Open **http://127.0.0.1:5173**; the API runs on port 5080. Use `api` or `frontend`
-after the launcher command to run either project in its own terminal. Host-run
-exports require local dump tools. SQL Server is an optional Compose profile.
+Open **http://127.0.0.1:5173**. The API runs on **http://127.0.0.1:5080**. Use `node scripts/dev.mjs api` or `node scripts/dev.mjs frontend` for separate terminals. Host-run exports require local dump tools.
 
-**Run the API directly:**
+For API-only development, `dotnet run --project Backend/src/Server.Api` creates private development settings on first startup. Initial credentials are in the ignored `appsettings.Local.json`; existing accounts are preserved.
 
-```powershell
-dotnet run --project Backend/src/Server.Api
+Optional local database targets:
+
+```sh
+docker compose -f compose.dbs.yaml up -d --wait
 ```
 
-Or run `dotnet run` inside the API directory. It starts at **http://127.0.0.1:5080**,
-creates private development settings in `Backend/src/Server.Api/appsettings.Local.json`
-and uses `Backend/data` for storage. The private file contains initial sign-in
-credentials; an existing `.env` key is preserved. Start React separately with
-`npm run dev --prefix Frontend`.
+These are backup targets; OctoBackup itself stores metadata in SQLite.
 
-See [operations and configuration](docs/OPERATIONS.md) for configuration precedence,
-database ports, combined deployment, trusted proxy settings and recovery.
+## Build and publish
 
-## Repository
+Both Dockerfiles use the **repository root** as build context:
 
-```text
-Backend/             .NET API, modules, tests, Dockerfile and generated artifacts
-Frontend/            React app, Nginx proxy, tests and Dockerfile
-docs/                Architecture, security, progress, roadmap and diagrams
-scripts/dev.mjs      Private local configuration and console launcher
-compose.yaml         API + frontend containers
-compose.dbs.yaml     PostgreSQL/MySQL targets; optional SQL Server
-OctoBackup.sln       Backend solution
+```sh
+docker build -f Backend/Dockerfile -t lewan24/octobackup-api:latest .
+docker build -f Frontend/Dockerfile -t lewan24/octobackup-web:latest .
+docker compose up -d --wait
 ```
 
-`Backend/artifacts/publish` contains generated release binaries. It is ignored,
-regenerable build output, not source or live backup data.
+To publish the locally built tags:
 
-## Features and limits
+```sh
+docker login
+docker push lewan24/octobackup-api:latest
+docker push lewan24/octobackup-web:latest
+```
 
-Working workflows include connections/SSH, manual backups, schedules, authorized
-history/downloads, user/access management and account settings. SQLite stores app
-metadata; PostgreSQL/MySQL/SQL Server are backup targets. New credentials use AES-GCM;
-cookie sessions use CSRF, rate limits and server-side access checks.
+Use your registry names consistently in build commands and `API_IMAGE` / `WEB_IMAGE`
+when publishing under another account.
 
-Administrators can open **Application settings** to approve database/SSH hosts,
-control public registration and confirmation, and change retention defaults and
-schedule polling. If a server host is blocked, add its exact hostname/IP there and
-save before creating the connection. Changes persist without an API restart.
-MySQL exports detect client capabilities and report actionable failures. See
-[MySQL backup troubleshooting](docs/OPERATIONS.md#mysql-dump-failures) for required
-client tools, TLS trust and routine-visibility grants.
+The images are Linux containers. Run them with Docker Engine on Linux or
+[Docker Desktop in Linux-container mode on Windows](https://docs.docker.com/desktop/setup/install/windows-install/).
+The selected Docker daemon determines the CPU architecture; publishing does not
+create a multi-architecture manifest. Native Windows-container mode is unsupported.
+Compose builds both application images from source by default. For previously
+pulled images, use `docker compose up --no-build --pull never -d --wait`.
 
-Restore tests run in disposable containers, with optional automatic testing after
-each successful backup and manual **Test / preview** from Backup history. The saved
-report shows sampled tables and rows. Enable the deployment runtime first, then
-the administrator toggle; see [restore-test setup](docs/OPERATIONS.md#restore-testing).
-The UI explains disabled deployments. After changing private runtime settings,
-restart the API and retry the test; existing reports remain accessible.
-Dump headers select compatible, deployment-approved engine versions. Preload the
-required image; PostgreSQL 17 dumps need a 17+ test server. MySQL/MariaDB restores
-inspect the archive's original database and preserve binary values.
-Email integration, MFA/recovery and backup-file encryption remain planned.
-ZIP compression is not encryption. SQL Server downloads require a
-shared backup filesystem at the same absolute path. Use one app replica per data
-store. See [security](docs/SECURITY.md) for the controls and their limits.
+For a console publish and frontend bundle:
 
-## Verification
+```sh
+dotnet publish Backend/src/Server.Api -c Release -o Backend/artifacts/publish
+npm run build --prefix Frontend
+```
 
-```powershell
+A 401 from `POST /api/auth/Login` means the credentials/account were rejected;
+a session-expired message applies to protected requests after login. Check the
+API's `Sign-in rejected` reason and [login troubleshooting](docs/OPERATIONS.md#login-and-runtime-troubleshooting).
+Bootstrap values create the first account only; changing them does not reset a
+password in an existing volume.
+
+## Everyday usage
+
+1. Sign in as administrator. In **Application settings**, approve the exact database/SSH hostnames or IPs your deployment may contact. Review registration and account confirmation policies.
+2. In **Servers**, create a connection and test it. Assign operators access where needed. Database TLS and verified SSH fingerprints are independent of the web reverse proxy.
+3. Choose an individual backup password or enable global encryption in **Application settings**. Encryption starts disabled; keep recovery passwords outside the application.
+4. Select **Queue backup**, or create a schedule. Follow the queue until it succeeds; acceptance is not completion. One export runs at a time.
+5. Open **Backup history** to download an archive or choose **Test / preview**. The production stack enables Docker restore tests and prepares compatible engine images automatically.
+
+Keep the complete `/data` volume, Data Protection keys and external `CRYPTO_KEY` in your recovery plan. Use one API replica per data directory. SQL Server needs shared staging; SQLite needs a narrow source mount. [Backup and recovery details](docs/BACKUPS.md).
+
+## Architecture
+
+```mermaid
+flowchart LR
+    Browser -->|HTTPS| Proxy[Your reverse proxy]
+    Proxy -->|HTTP / WebSocket| Web[React + Nginx :8080]
+    Web -->|HTTP / scoped events| API[.NET API :8080]
+    API --> Data[(SQLite metadata / backups / keys)]
+    API --> Sources[(Database targets / SSH)]
+    API --> Tests[Isolated restore containers]
+```
+
+| Path | Contents |
+| --- | --- |
+| `Backend/` | API, modules, tests, recovery tool and Dockerfile |
+| `Frontend/` | React features, Nginx proxy, tests and Dockerfile |
+| `deploy/` | Optional provider network and SQL Server staging examples |
+| `scripts/` | Development launcher, deployment tests and disposable smoke checks |
+| `docs/` | Focused reference guides and editable architecture diagrams |
+
+## Test
+
+Run backend checks before browser tests; Windows can lock running API binaries.
+
+```sh
+dotnet build OctoBackup.sln
 dotnet test Backend/tests/OctoBackup.Tests
 npm test --prefix Frontend
 npm run build --prefix Frontend
+node --test scripts/deployment.test.mjs
 node Frontend/node_modules/@playwright/test/cli.js install chromium
 npm run test:e2e --prefix Frontend
+npm audit --prefix Frontend
+dotnet list OctoBackup.sln package --vulnerable --include-transitive
 ```
 
-Run backend builds before browser tests. Test results and remaining release checks
-are in [migration progress](docs/MIGRATION.md).
+Tests and deployment smoke checks use disposable data. Instructions for container and provider checks are in [operations](docs/OPERATIONS.md#validation).
 
-[Architecture](docs/ARCHITECTURE.md) ? [Roadmap](docs/ROADMAP.md) |
-[Product](docs/PRODUCT.md) ? [Design](docs/DESIGN.md) ? [Agent guidance](AGENTS.md)
+## Documentation
 
-MIT licensed; see [LICENSE](LICENSE).
+| Guide | What you will find |
+| --- | --- |
+| [Operations](docs/OPERATIONS.md) | Deployment, reverse proxy, configuration reload, development and checks |
+| [Database connections](docs/DATABASE_CONNECTIONS.md) | Dump clients, grants, networking and SQL Server staging |
+| [Backups and recovery](docs/BACKUPS.md) | Encryption, source mounts, restore testing and offline decryption |
+| [Architecture](docs/ARCHITECTURE.md) | Modules, data flow, queue contracts and editable draw.io diagrams |
+| [Security](docs/SECURITY.md) | Trust boundaries, access controls and operational limits |
+| [Interface](docs/DESIGN.md) | UI tokens, interaction patterns and accessibility |
+
+## Roadmap
+
+Suggestions for future work, rather than available features:
+
+- Separate restore execution from the web API into a dedicated worker.
+- Add MFA, verified email changes, invitations and password recovery.
+- Add backup checksums, manifests, orphan-file reconciliation and configurable retries.
+- Extend retention editing, server-side history filtering and timezone/DST scheduling.
+- Provide an offline credential rekey tool and external key wrapping.
+- Add object-storage destinations, remote SQLite transport and SQL Server retrieval adapters.
+- Expand engine/version/large-schema restore coverage and accessibility CI.
+- Generate API documentation and browser types; add English/Polish UI localization.
+
+[MIT license](LICENSE)

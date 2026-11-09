@@ -8,6 +8,7 @@ public sealed record PerformedBackup
     public Guid? TestId { get; set; }
     public Guid? ServerConnectionId { get; set; }
     public required string FilePath { get; set; }
+    public Guid? EncryptionKeyId { get; set; }
     public bool IsSoftDeleted { get; set; } = false;
     public Modules.Backup.Shared.Enums.DatabaseType? DatabaseType { get; set; }
     public string? DatabaseName { get; set; }

@@ -31,7 +31,7 @@ public static class DumpProcess
         try
         {
             cancellationToken.ThrowIfCancellationRequested();
-            file = new FileStream(output, FileMode.CreateNew, FileAccess.Write);
+            file = SafeBackupPath.CreatePrivateFile(output);
             try { started = process.Start(); }
             catch (Win32Exception)
             {

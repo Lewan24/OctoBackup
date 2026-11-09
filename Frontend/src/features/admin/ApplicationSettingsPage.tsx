@@ -1,3 +1,4 @@
+import { BackupEncryptionSettings } from "./BackupEncryptionSettings";
 import { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
@@ -13,6 +14,7 @@ import {
   restoreRuntimeHelp,
 } from "../../shared/restoreTesting";
 import {
+  Dialog,
   ErrorMessage,
   Field,
   Loading,
@@ -38,6 +40,7 @@ const queryKey = ["application-settings"];
 
 export function ApplicationSettingsPage() {
   const client = useQueryClient();
+  const [editing, setEditing] = useState(false);
   const [saved, setSaved] = useState(false);
   const [editorVersion, setEditorVersion] = useState(0);
   const query = useQuery({
@@ -52,7 +55,7 @@ export function ApplicationSettingsPage() {
     <>
       <PageHeading
         title="Application settings"
-        description="Control network access, account registration, and backup defaults."
+        description="Manage backup encryption, network access, account registration, and backup defaults."
       />
       <ErrorMessage error={query.error} />
       {query.isPending ? (
@@ -66,24 +69,63 @@ export function ApplicationSettingsPage() {
                   Settings saved. Changes apply without restarting the API.
                 </p>
               )}
-              <SettingsEditor
-                key={`${query.data.revision}-${editorVersion}`}
-                settings={query.data}
-                onSave={(settings) => {
-                  client.setQueryData(queryKey, settings);
-                  void client.invalidateQueries({
-                    queryKey: ["registration-policy"],
-                  });
-                  setSaved(true);
-                }}
-                onReload={() => {
-                  setSaved(false);
-                  void query.refetch().then((result) => {
-                    if (!result.isError)
-                      setEditorVersion((version) => version + 1);
-                  });
-                }}
-              />
+              <BackupEncryptionSettings />
+              <section className="panel action-card">
+                <h2>Workspace policies</h2>
+                <p>
+                  Manage approved hosts, account registration, retention and
+                  queue timing in one focused editor.
+                </p>
+                <dl className="policy-summary">
+                  <div>
+                    <dt>Approved hosts</dt>
+                    <dd>{query.data.allowedDatabaseHosts.length}</dd>
+                  </div>
+                  <div>
+                    <dt>Public registration</dt>
+                    <dd>
+                      {query.data.registrationEnabled ? "Enabled" : "Disabled"}
+                    </dd>
+                  </div>
+                  <div>
+                    <dt>Default retention</dt>
+                    <dd>{query.data.defaultRetentionDays} days</dd>
+                  </div>
+                  <div>
+                    <dt>Schedule polling</dt>
+                    <dd>{query.data.schedulePollSeconds} seconds</dd>
+                  </div>
+                </dl>
+                <button onClick={() => setEditing(true)}>
+                  Edit workspace policies
+                </button>
+              </section>
+              {editing && (
+                <Dialog
+                  title="Workspace policies"
+                  onClose={() => setEditing(false)}
+                >
+                  <SettingsEditor
+                    key={`${query.data.revision}-${editorVersion}`}
+                    settings={query.data}
+                    onSave={(settings) => {
+                      client.setQueryData(queryKey, settings);
+                      void client.invalidateQueries({
+                        queryKey: ["registration-policy"],
+                      });
+                      setSaved(true);
+                      setEditing(false);
+                    }}
+                    onReload={() => {
+                      setSaved(false);
+                      void query.refetch().then((result) => {
+                        if (!result.isError)
+                          setEditorVersion((version) => version + 1);
+                      });
+                    }}
+                  />
+                </Dialog>
+              )}
             </div>
             <aside
               className="panel settings-context"
@@ -96,7 +138,7 @@ export function ApplicationSettingsPage() {
                 kept outside this panel.
               </p>
               <ul>
-                <li>Encryption and bootstrap secrets</li>
+                <li>Data Protection key ring and bootstrap secrets</li>
                 <li>Storage locations and cookie keys</li>
                 <li>HTTPS, trusted proxies and incoming hostnames</li>
                 <li>Verified SSH host-key fingerprints</li>

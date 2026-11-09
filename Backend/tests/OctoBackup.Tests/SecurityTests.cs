@@ -106,7 +106,7 @@ public sealed class SecurityTests(AppFactory factory) : IClassFixture<AppFactory
         using var scope = factory.Services.CreateScope();
         var crypto = scope.ServiceProvider.GetRequiredService<ICryptoService>();
         var a = crypto.Encrypt("database-secret")!; var b = crypto.Encrypt("database-secret")!;
-        Assert.StartsWith("gcm1:", a); Assert.NotEqual(a, b); Assert.Equal("database-secret", crypto.Decrypt(a));
+        Assert.StartsWith("dp1:", a); Assert.NotEqual(a, b); Assert.Equal("database-secret", crypto.Decrypt(a));
         // The old deployment format remains readable so upgrading does not lose credentials.
         using var legacy = Aes.Create();
         legacy.Key = Convert.FromBase64String(Environment.GetEnvironmentVariable("CRYPTO_KEY")!);
@@ -114,8 +114,12 @@ public sealed class SecurityTests(AppFactory factory) : IClassFixture<AppFactory
         var plain = System.Text.Encoding.UTF8.GetBytes("legacy-secret");
         var encrypted = legacy.CreateEncryptor().TransformFinalBlock(plain, 0, plain.Length);
         Assert.Equal("legacy-secret", crypto.Decrypt(Convert.ToBase64String(legacy.IV.Concat(encrypted).ToArray())));
-        var bytes = Convert.FromBase64String(a[5..]); bytes[^1] ^= 1;
-        Assert.ThrowsAny<CryptographicException>(() => crypto.Decrypt("gcm1:" + Convert.ToBase64String(bytes)));
+        var tampered = a[..^10] + (a[^10] == 'A' ? "B" : "A") + a[^9..];
+        Assert.ThrowsAny<CryptographicException>(() => crypto.Decrypt(tampered));
+        using var gcm = new AesGcm(legacy.Key, 16);
+        var nonce = RandomNumberGenerator.GetBytes(12); var tag = new byte[16]; var cipher = new byte[plain.Length];
+        gcm.Encrypt(nonce, plain, cipher, tag);
+        Assert.Equal("legacy-secret", crypto.Decrypt("gcm1:" + Convert.ToBase64String(nonce.Concat(tag).Concat(cipher).ToArray())));
     }
 
     [Theory]

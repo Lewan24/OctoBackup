@@ -52,19 +52,21 @@ public sealed record RestoreArchiveProfile(string Image, string Database, bool M
             var image = major is null ? config["RestoreTests:PostgresImage"] ?? "postgres:16-bookworm"
                 : config[$"RestoreTests:PostgresImages:{major}"] ?? major switch {
                     14 => "postgres:14", 15 => "postgres:15", 16 => "postgres:16-bookworm", 17 => "postgres:17", 18 => "postgres:18-alpine",
-                    _ => throw new RestoreTestException("No compatible PostgreSQL image mapping exists for this dump major version. Configure RestoreTests:PostgresImages and preload that image.") };
+                    _ => throw new RestoreTestException($"No compatible PostgreSQL image mapping exists for detected dump/source major {major}. Configure RestoreTests:PostgresImages:{major} and preload that image.") };
             return new(image, "restore_probe", false, major, major is null ? "PostgreSQL SQL archive (version header unavailable)" : $"PostgreSQL SQL archive, minimum compatible major {major}");
         }
         var server = Regex.Match(header, @"(?m)^-- Server version\s+(?:5\.5\.5-)?([0-9]{1,2}\.[0-9]{1,2})([^\r\n]*)");
-        var maria = header.Contains("-- MariaDB dump", StringComparison.Ordinal) || (server.Success && server.Value.Contains("MariaDB", StringComparison.OrdinalIgnoreCase));
+        // Client branding is not the source engine: mariadb-dump can export MySQL.
+        var maria = server.Success ? server.Value.Contains("MariaDB", StringComparison.OrdinalIgnoreCase)
+            : header.Contains("-- MariaDB dump", StringComparison.Ordinal);
         var version = server.Success ? server.Groups[1].Value : null;
         var configured = version is null ? null : config[$"RestoreTests:{(maria ? "MariaDbImages" : "MySqlImages")}:{version}"];
         var mysqlImage = configured ?? (maria ? version switch {
             null => config["RestoreTests:MariaDbImage"] ?? "mariadb:11.4", "10.11" => "mariadb:10.11", "11.4" => "mariadb:11.4",
-            _ => throw new RestoreTestException("No MariaDB image mapping exists for this server version. Configure RestoreTests:MariaDbImages and preload a compatible image.")
+            _ => throw new RestoreTestException($"No MariaDB image mapping exists for detected source version {Regex.Match(server.Value, @"(?:5\.5\.5-)?[0-9]{1,2}\.[0-9]{1,2}(?:\.[0-9]{1,4})?").Value} (release {version}). Configure RestoreTests:MariaDbImages:{version} and preload a compatible image.")
         } : version switch {
             null => config["RestoreTests:MySqlImage"] ?? "mysql:8.4", "5.7" => "mysql:5.7", "8.0" => "mysql:8.0", "8.4" => "mysql:8.4",
-            _ => throw new RestoreTestException("No MySQL image mapping exists for this server version. Configure RestoreTests:MySqlImages and preload a compatible image.")
+            _ => throw new RestoreTestException($"No MySQL image mapping exists for detected source version {Regex.Match(server.Value, @"(?:5\.5\.5-)?[0-9]{1,2}\.[0-9]{1,2}(?:\.[0-9]{1,4})?").Value} (release {version}). Configure RestoreTests:MySqlImages:{version} and preload a compatible image.")
         });
         var databaseHeader = Regex.Match(header, @"(?m)^-- Current Database: `((?:``|[^`\r\n])+)`\r?$");
         var database = databaseHeader.Success ? databaseHeader.Groups[1].Value.Replace("``", "`")

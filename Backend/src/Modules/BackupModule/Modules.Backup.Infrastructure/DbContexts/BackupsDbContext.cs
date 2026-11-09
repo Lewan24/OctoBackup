@@ -18,8 +18,12 @@ public sealed class BackupsDbContext : DbContext
     public DbSet<ServerBackupsConfiguration> Configurations { get; set; }
     public DbSet<BackupRequest> BackupRequests { get; set; }
 
+    public DbSet<BackupEncryptionPolicy> BackupEncryptionPolicies { get; set; }
+    public DbSet<BackupEncryptionKey> BackupEncryptionKeys { get; set; }
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
+        modelBuilder.Entity<BackupEncryptionKey>().HasIndex(k => k.ActiveScope).IsUnique();
         modelBuilder.Entity<BackupTest>().HasIndex(t => t.ActiveBackupId).IsUnique();
         modelBuilder.Entity<BackupTest>().HasIndex(t => new { t.Status, t.TestedOn });
         var requests = modelBuilder.Entity<BackupRequest>();

@@ -1,11 +1,54 @@
 name: octobackup
+
+# One production stack. The API controls this Docker daemon for restore tests.
+# Use a dedicated host/VM; socket access grants control of its workloads.
+x-api-image: &api-image
+  image: ${API_IMAGE:-lewan24/octobackup-api:latest}
+  build:
+    context: .
+    dockerfile: Backend/Dockerfile
+  pull_policy: build
+
+x-restore-runtime: &restore-runtime
+  RestoreTests__Enabled: "true"
+  Configuration__ReloadFile: /config/appsettings.Runtime.json
+  DOTNET_USE_POLLING_FILE_WATCHER: "true"
+  # Put deployment-owned image maps/limits in config/appsettings.Runtime.json.
+  # Both the preparation service and API read that file.
+
 services:
+  restore-images:
+    <<: *api-image
+    restart: "no"
+    entrypoint: [/bin/sh, /app/prepare-restore-images.sh]
+    environment: *restore-runtime
+    group_add:
+      - "${RESTORE_DOCKER_GID:?Run node scripts/dev.mjs init or set the Docker socket group ID}"
+    volumes:
+      - type: bind
+        source: ${RESTORE_DOCKER_SOCKET:-/var/run/docker.sock}
+        target: /var/run/docker.sock
+        bind:
+          create_host_path: false
+      - ./config:/config:ro
+    network_mode: none
+    read_only: true
+    tmpfs: [/tmp]
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    healthcheck:
+      disable: true
+
   api:
-    build:
-      context: .
-      dockerfile: Backend/Dockerfile
+    <<: *api-image
     restart: unless-stopped
+    depends_on:
+      restore-images:
+        condition: service_completed_successfully
     environment:
+      <<: *restore-runtime
+      Security__AllowInsecureHttp: ${ALLOW_INSECURE_HTTP:-false}
+      DataProtection__KeysDirectory: /data/keys
       CRYPTO_KEY: ${CRYPTO_KEY:?Run node scripts/dev.mjs init first}
       Bootstrap__AdminEmail: ${ADMIN_EMAIL:?Set ADMIN_EMAIL in .env}
       Bootstrap__AdminPassword: ${ADMIN_PASSWORD:?Set ADMIN_PASSWORD in .env}
@@ -17,12 +60,18 @@ services:
       Security__AllowedDatabaseHosts__4: sqlserver
       ReverseProxy__Enabled: "true"
       ReverseProxy__KnownProxies__0: ${FRONTEND_IP:-172.30.85.2}
-      OCTOBACKUP_SSH_HOST_KEYS: /certs/ssh-host-keys.json
     extra_hosts:
       - "host.docker.internal:host-gateway"
     volumes:
       - octobackup-data:/data
-      - ./certs:/certs:ro
+      - ./config:/config:ro
+      - type: bind
+        source: ${RESTORE_DOCKER_SOCKET:-/var/run/docker.sock}
+        target: /var/run/docker.sock
+        bind:
+          create_host_path: false
+    group_add:
+      - "${RESTORE_DOCKER_GID:?Run node scripts/dev.mjs init or set the Docker socket group ID}"
     read_only: true
     tmpfs:
       - /tmp
@@ -31,17 +80,17 @@ services:
     networks: [web]
 
   frontend:
+    image: ${WEB_IMAGE:-lewan24/octobackup-web:latest}
     build:
       context: .
       dockerfile: Frontend/Dockerfile
+    pull_policy: build
     restart: unless-stopped
     depends_on:
       api:
         condition: service_healthy
     ports:
-      - "127.0.0.1:${FRONTEND_PORT:-8443}:8443"
-    volumes:
-      - ./certs:/certs:ro
+      - "127.0.0.1:${FRONTEND_PORT:-8080}:8080"
     read_only: true
     tmpfs:
       - /tmp

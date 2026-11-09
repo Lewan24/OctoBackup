@@ -8,7 +8,7 @@ import {
   LoaderCircle,
   X,
 } from "lucide-react";
-import { ErrorMessage } from "../../shared/ui";
+import { ConfirmDialog, ErrorMessage } from "../../shared/ui";
 import {
   eligibilityText,
   useBackupQueue,
@@ -19,8 +19,10 @@ export function QueueHero() {
   const query = useBackupQueue();
   const act = useQueueActions();
   const [now, setNow] = useState(Date.now());
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<unknown>();
+  const [cancelling, setCancelling] = useState<{
+    id: string;
+    name: string;
+  } | null>(null);
   const data = query.data;
   const offset = useMemo(
     () => (data ? new Date(data.serverTimeUtc).getTime() - Date.now() : 0),
@@ -100,18 +102,9 @@ export function QueueHero() {
           {next?.canCancel && (
             <button
               className="queue-cancel"
-              disabled={busy}
-              onClick={async () => {
-                setBusy(true);
-                setError(undefined);
-                try {
-                  await act(next.id, "Cancel");
-                } catch (e) {
-                  setError(e);
-                } finally {
-                  setBusy(false);
-                }
-              }}
+              onClick={() =>
+                setCancelling({ id: next.id, name: next.serverName })
+              }
             >
               <X size={13} />
               Cancel next request
@@ -119,7 +112,20 @@ export function QueueHero() {
           )}
         </div>
       )}
-      <ErrorMessage error={error ?? query.error} />
+      {cancelling && (
+        <ConfirmDialog
+          title={`Cancel backup · ${cancelling.name}`}
+          label="Cancel backup"
+          onClose={() => setCancelling(null)}
+          onConfirm={() => act(cancelling.id, "Cancel")}
+        >
+          <p>
+            Cancel request {cancelling.id}? Waiting work stops immediately. A
+            running export will be asked to stop.
+          </p>
+        </ConfirmDialog>
+      )}
+      <ErrorMessage error={query.error} />
     </section>
   );
 }

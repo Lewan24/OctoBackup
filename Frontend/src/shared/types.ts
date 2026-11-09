@@ -42,6 +42,7 @@ export type Schedule = {
   selectedTimes: string[];
 };
 export type Backup = {
+  isEncrypted?: boolean;
   id: string;
   name: string;
   createdOn: string;
@@ -56,8 +57,13 @@ export type User = {
   isEmailConfirmed: boolean;
   roles: string[];
 };
-export const engines = ["MySQL", "PostgreSQL", "SQL Server"];
-export const engineCodes = ["MY", "PG", "MS"];
+export const engines = [
+  "MySQL / MariaDB",
+  "PostgreSQL",
+  "SQL Server",
+  "SQLite",
+];
+export const engineCodes = ["MY", "PG", "MS", "SQ"];
 export const days = [
   "Sunday",
   "Monday",

@@ -1,0 +1,32 @@
+# Merge with compose.yaml and compose.dbs.yaml, using the sqlserver profile.
+# Dedicated staging share: SQL Server never sees API metadata or encryption keys.
+services:
+  sqlserver-staging-init:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    profiles: [sqlserver]
+    user: "0:0"
+    entrypoint: [/bin/sh, -c]
+    command: ["chown 10001:0 /sqlserver-stage && chmod 2770 /sqlserver-stage"]
+    network_mode: none
+    read_only: true
+    cap_drop: [ALL]
+    cap_add: [CHOWN, FOWNER]
+    security_opt: ["no-new-privileges:true"]
+    volumes:
+      - sqlserver-staging:/sqlserver-stage
+    restart: "no"
+  sqlserver:
+    depends_on:
+      sqlserver-staging-init:
+        condition: service_completed_successfully
+    volumes:
+      - sqlserver-staging:/sqlserver-stage
+  api:
+    group_add: ["0"]
+    environment:
+      SqlServer__LocalStagingDirectory: /sqlserver-stage
+      SqlServer__RemoteBackupRoot: /sqlserver-stage
+    volumes:
+      - sqlserver-staging:/sqlserver-stage
+volumes:
+  sqlserver-staging:

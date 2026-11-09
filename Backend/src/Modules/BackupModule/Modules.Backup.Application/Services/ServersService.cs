@@ -25,7 +25,7 @@ public class ServersService(
     NotifyService notifyService,
     ICryptoService cryptoService,
     IAdminModuleApi adminApi,
-    IApplicationSettings settings)
+    IApplicationSettings settings, Microsoft.Extensions.Configuration.IConfiguration configuration, BackupEncryptionService encryption)
 {
     public async Task<OneOf<List<ServerConnectionDto>, string>> GetServers(string? identityName)
     {
@@ -152,6 +152,8 @@ public class ServersService(
 
     public async Task<OneOf<Success, string>> CreateServer(ServerConnectionDto newServer, string? identityName)
     {
+        await using var keyLock = await encryption.LockConfiguration();
+        await using var transaction = await db.Database.BeginTransactionAsync();
         List<string> errors = new();
 
         if (string.IsNullOrWhiteSpace(newServer.ConnectionName))
@@ -164,7 +166,7 @@ public class ServersService(
             errors.Add("Database name is required");
         if (string.IsNullOrWhiteSpace(newServer.DbUser))
             errors.Add("Database user is required");
-        if (string.IsNullOrWhiteSpace(newServer.DbPasswd))
+        if (newServer.DbType != Modules.Backup.Shared.Enums.DatabaseType.Sqlite && string.IsNullOrWhiteSpace(newServer.DbPasswd))
             errors.Add("Database password is required");
 
         if (newServer.IsTunnelRequired)
@@ -208,7 +210,7 @@ public class ServersService(
             DbName = newServer.DbName,
             DbType = newServer.DbType,
             DbUser = newServer.DbUser,
-            DbPasswd = encryptedDbPasswd ?? throw new ArgumentException("Db password can't be null"),
+            DbPasswd = encryptedDbPasswd ?? "",
             SsL = newServer.SsL,
             IsTunnelRequired = newServer.IsTunnelRequired,
             IsDisabled = false
@@ -284,8 +286,9 @@ public class ServersService(
         };
 
         db.Configurations.Add(serverBackupConfig);
-
+        await encryption.ApplyServerConfiguration(dbServer.Id, newServer.Encryption);
         await db.SaveChangesAsync();
+        await transaction.CommitAsync();
 
         await notifyService.CallServerCreatedEvent(user.UserName!);
 
@@ -294,6 +297,8 @@ public class ServersService(
 
     public async Task<OneOf<Success, string>> EditServer(ServerConnectionDto server)
     {
+        await using var keyLock = await encryption.LockConfiguration();
+        await using var transaction = await db.Database.BeginTransactionAsync();
         // TODO: Implement checking if user has access to server or is admin
         List<string> errors = [];
 
@@ -404,7 +409,9 @@ public class ServersService(
             dbServer.TunnelId = dbTunnel.Id;
         }
 
+        await encryption.ApplyServerConfiguration(dbServer.Id, server.Encryption);
         await db.SaveChangesAsync();
+        await transaction.CommitAsync();
 
         await notifyService.CallServerHasChangedEvent(dbServer.Id);
 
@@ -617,10 +624,10 @@ public class ServersService(
         if (serverConn.IsTunnelRequired)
             tunnel = db.DbServerTunnels.FirstOrDefault(x => x.Id == serverConn.TunnelId);
 
-        if (!DatabaseHostPolicy.AllowsConnection(settings.Current, serverConn.ServerHost,
+        if (serverConn.DbType != Modules.Backup.Shared.Enums.DatabaseType.Sqlite && !DatabaseHostPolicy.AllowsConnection(settings.Current, serverConn.ServerHost,
             serverConn.IsTunnelRequired, tunnel?.ServerHost, tunnel?.RemoteHost))
             return DatabaseHostPolicy.DeniedMessage;
-        var testResult = await ServerConnectionTester.TestConnectionAsync(serverConn, tunnel, cryptoService);
+        var testResult = await ServerConnectionTester.TestConnectionAsync(serverConn, tunnel, cryptoService, configuration);
 
         return testResult.Result ? new Success() : testResult.ErrorMsg!;
     }

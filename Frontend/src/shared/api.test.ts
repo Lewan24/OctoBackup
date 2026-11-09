@@ -1,6 +1,14 @@
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { api, ApiError, resetCsrf } from "./api";
-beforeEach(() => resetCsrf());
+beforeEach(() => {
+  resetCsrf();
+  vi.stubGlobal("localStorage", {
+    setItem: vi.fn(),
+    getItem: vi.fn(),
+    removeItem: vi.fn(),
+    clear: vi.fn(),
+  });
+});
 afterEach(() => vi.unstubAllGlobals());
 it("fetches a CSRF token and sends it with mutations without storing credentials", async () => {
   const fetch = vi
@@ -20,7 +28,7 @@ it("fetches a CSRF token and sends it with mutations without storing credentials
     credentials: "same-origin",
     headers: { "X-CSRF-TOKEN": "csrf-token" },
   });
-  expect(localStorage.length).toBe(0);
+  expect(localStorage.setItem).not.toHaveBeenCalled();
 });
 it("surfaces permission errors without treating the request as success", async () => {
   vi.stubGlobal(
@@ -38,4 +46,64 @@ it("does not submit a mutation if CSRF initialization fails", async () => {
     "Could not initialize",
   );
   expect(fetch).toHaveBeenCalledTimes(1);
+});
+
+it("explains a rejected login instead of reporting an expired session", async () => {
+  vi.stubGlobal(
+    "fetch",
+    vi
+      .fn()
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify({ token: "csrf-token" })),
+      )
+      .mockResolvedValueOnce(new Response(null, { status: 401 })),
+  );
+  await expect(
+    api("auth/Login", {
+      email: "user@example.com",
+      password: "wrong-password",
+    }),
+  ).rejects.toEqual(
+    new ApiError(
+      401,
+      "Sign-in failed. Check your email and password, or ask an administrator to check account access.",
+    ),
+  );
+});
+
+it("still reports an expired session for protected requests", async () => {
+  vi.stubGlobal(
+    "fetch",
+    vi.fn().mockResolvedValue(new Response(null, { status: 401 })),
+  );
+  await expect(api("servers/GetMyServers")).rejects.toEqual(
+    new ApiError(401, "Your session has ended. Sign in again."),
+  );
+});
+
+it("returns a binary response through the same CSRF-protected transport", async () => {
+  const fetch = vi
+    .fn()
+    .mockResolvedValueOnce(
+      new Response(JSON.stringify({ token: "csrf-token" })),
+    )
+    .mockResolvedValueOnce(
+      new Response("encrypted archive", {
+        headers: { "Content-Type": "application/octet-stream" },
+      }),
+    );
+  vi.stubGlobal("fetch", fetch);
+  const response = await api<Response>(
+    "backups/DownloadDecrypted?id=fixture",
+    { password: "private-password" },
+    undefined,
+    "response",
+  );
+  expect(await response.text()).toBe("encrypted archive");
+  expect(fetch.mock.calls[1][1]).toMatchObject({
+    method: "POST",
+    headers: { "X-CSRF-TOKEN": "csrf-token" },
+    body: JSON.stringify({ password: "private-password" }),
+  });
+  expect(localStorage.setItem).not.toHaveBeenCalled();
 });

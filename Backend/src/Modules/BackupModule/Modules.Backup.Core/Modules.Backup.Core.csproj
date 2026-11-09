@@ -6,7 +6,6 @@
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="MySqlConnector" Version="2.6.2" />
-    <PackageReference Include="NLog" Version="6.2.2" />
     <PackageReference Include="Npgsql" Version="10.0.3" />
     <PackageReference Include="SSH.NET" Version="2026.0.0" />
   </ItemGroup>
@@ -15,7 +14,6 @@
     <ProjectReference Include="../../CryptoModule/Modules.Crypto.Shared/Modules.Crypto.Shared.csproj" />
     <ProjectReference Include="../Modules.Backup.Shared/Modules.Backup.Shared.csproj" />
   </ItemGroup>
-  <ItemGroup />
   <ItemGroup>
     <PackageReference Include="Microsoft.Data.SqlClient" Version="7.1.1" />
   </ItemGroup>

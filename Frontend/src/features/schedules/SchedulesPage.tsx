@@ -5,6 +5,8 @@ import { api } from "../../shared/api";
 import type { Schedule } from "../../shared/types";
 import { days } from "../../shared/types";
 import {
+  Dialog,
+  ConfirmDialog,
   Empty,
   ErrorMessage,
   Loading,
@@ -17,8 +19,6 @@ export function SchedulesPage() {
   const client = useQueryClient();
   const [edit, setEdit] = useState<Schedule | "new" | null>(null);
   const [removing, setRemoving] = useState<string | null>(null);
-  const [error, setError] = useState<unknown>();
-  const [busy, setBusy] = useState(false);
   const query = useQuery({
     queryKey: ["schedules"],
     queryFn: ({ signal }) =>
@@ -36,12 +36,13 @@ export function SchedulesPage() {
           </button>
         }
       />
-      <ErrorMessage error={error} />
       {edit && (
-        <section className="panel editor">
-          <h2>
-            {edit === "new" ? "Create a backup schedule" : "Edit schedule"}
-          </h2>
+        <Dialog
+          title={
+            edit === "new" ? "Create a backup schedule" : `Edit ${edit.name}`
+          }
+          onClose={() => setEdit(null)}
+        >
           <ScheduleForm
             key={typeof edit === "string" ? edit : edit.id}
             schedule={edit === "new" ? undefined : edit}
@@ -51,7 +52,24 @@ export function SchedulesPage() {
               await client.invalidateQueries();
             }}
           />
-        </section>
+        </Dialog>
+      )}
+      {removing && (
+        <ConfirmDialog
+          title="Delete schedule"
+          label="Confirm delete"
+          onClose={() => setRemoving(null)}
+          onConfirm={async () => {
+            await api("schedules/DeleteSchedule", removing);
+            await client.invalidateQueries();
+          }}
+        >
+          <p>
+            Delete{" "}
+            <strong>{query.data?.find((s) => s.id === removing)?.name}</strong>?
+            Future occurrences will stop. Existing backups remain available.
+          </p>
+        </ConfirmDialog>
       )}
       {query.isPending ? (
         <Loading />
@@ -101,52 +119,22 @@ export function SchedulesPage() {
                       </Status>
                     </td>
                     <td>
-                      {removing === s.id ? (
-                        <div className="inline-actions">
-                          <button
-                            className="danger"
-                            disabled={busy}
-                            onClick={async () => {
-                              setBusy(true);
-                              setError(undefined);
-                              try {
-                                await api("schedules/DeleteSchedule", s.id);
-                                await client.invalidateQueries();
-                                setRemoving(null);
-                              } catch (e) {
-                                setError(e);
-                              } finally {
-                                setBusy(false);
-                              }
-                            }}
-                          >
-                            Confirm delete
-                          </button>
-                          <button
-                            className="secondary"
-                            onClick={() => setRemoving(null)}
-                          >
-                            Cancel
-                          </button>
-                        </div>
-                      ) : (
-                        <div className="inline-actions">
-                          <button
-                            className="icon-button"
-                            aria-label={`Edit ${s.name}`}
-                            onClick={() => setEdit(s)}
-                          >
-                            <Pencil size={16} />
-                          </button>
-                          <button
-                            className="icon-button danger-text"
-                            aria-label={`Delete ${s.name}`}
-                            onClick={() => setRemoving(s.id)}
-                          >
-                            <Trash2 size={16} />
-                          </button>
-                        </div>
-                      )}
+                      <div className="inline-actions">
+                        <button
+                          className="icon-button"
+                          aria-label={`Edit ${s.name}`}
+                          onClick={() => setEdit(s)}
+                        >
+                          <Pencil size={16} />
+                        </button>
+                        <button
+                          className="icon-button danger-text"
+                          aria-label={`Delete ${s.name}`}
+                          onClick={() => setRemoving(s.id)}
+                        >
+                          <Trash2 size={16} />
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -276,8 +264,8 @@ function ScheduleForm({
           Enable this schedule
         </label>
         <p className="hint">
-          Execution is picked up by the worker within its five-minute polling
-          interval.
+          Execution is picked up at the polling interval configured by your
+          administrator.
         </p>
       </SubmitForm>
     </>

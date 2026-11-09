@@ -1,7 +1,7 @@
 # Working on OctoBackup
 
-Read docs/PRODUCT.md, docs/ARCHITECTURE.md, docs/SECURITY.md and docs/MIGRATION.md before changes.
-docs/OPERATIONS.md documents setup/testing; docs/ROADMAP.md separates future work from facts.
+Read docs/ARCHITECTURE.md, docs/SECURITY.md and docs/OPERATIONS.md before changes.
+docs/BACKUPS.md documents recovery/testing; README.md separates proposed work from facts.
 
 - Backend is a .NET 10 modular monolith under Backend/src. Preserve namespaces,
   Identity/SQLite compatibility and existing EF migrations. Use the local EF tool.
@@ -20,9 +20,11 @@ docs/OPERATIONS.md documents setup/testing; docs/ROADMAP.md separates future wor
   Frontend scripts handle # in filesystem paths through temp staging.
 - Validate with dotnet test, npm test/build and Playwright as appropriate. Check
   dependency audits. Use disposable data, never a developer's real backup database.
-- Update progress docs and both READMEs when behavior or setup changes. Record
-  actual results and remaining limitations; do not claim a penetration test or
-  live-provider restore verification from unit/API/browser checks alone.
+- Update relevant reference docs and both READMEs when behavior or setup changes.
+  Report actual results and remaining limitations in the change summary; do not claim
+  a penetration test or live-provider restore verification from unit/API/browser checks alone.
 
-- Build Dockerfiles with repository-root context. Frontend Nginx terminates TLS and proxies the private API; never trust arbitrary forwarded headers.
+- Build Dockerfiles with repository-root context. The deployment reverse proxy
+  terminates TLS; frontend Nginx proxies the private HTTP API. Never trust arbitrary
+  forwarded headers.
 - Console helper: node scripts/dev.mjs init, then node scripts/dev.mjs. Never print .env secrets.

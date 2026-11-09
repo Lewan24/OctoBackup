@@ -83,6 +83,10 @@ it("shows a saved queued request and cancels it through the protected action", a
   await userEvent
     .setup()
     .click(screen.getByRole("button", { name: "Cancel next request" }));
+  expect(api).not.toHaveBeenCalledWith("backup-queue/Cancel", "request-1");
+  await userEvent.click(
+    screen.getByRole("button", { name: /^Cancel backup$/ }),
+  );
   expect(api).toHaveBeenCalledWith("backup-queue/Cancel", "request-1");
   await screen.findByRole("heading", { name: "Backup queue is clear" });
 });

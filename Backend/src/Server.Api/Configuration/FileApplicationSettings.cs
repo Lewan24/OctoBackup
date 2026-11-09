@@ -1,5 +1,6 @@
 using System.Text.Json;
 using Modules.Shared.Settings;
+using Microsoft.Extensions.Primitives;
 
 namespace Server.Api.Configuration;
 
@@ -10,24 +11,50 @@ public sealed class FileApplicationSettings : IApplicationSettings, IDisposable
     private readonly string _path;
     private readonly SemaphoreSlim _gate = new(1, 1);
     private ApplicationSettings _current;
+    private readonly IConfiguration _configuration;
+    private readonly ILogger<FileApplicationSettings>? _logger;
+    private readonly IDisposable _reload;
+    private bool _persisted;
     private static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web) { WriteIndented = true };
 
-    public FileApplicationSettings(IConfiguration config, string dataDirectory)
+    public FileApplicationSettings(IConfiguration config, string dataDirectory, ILogger<FileApplicationSettings>? logger = null)
     {
+        _configuration = config; _logger = logger;
         _path = Path.Combine(dataDirectory, "Config", "application-settings.json");
-        _current = Validate(File.Exists(_path)
+        _persisted = File.Exists(_path);
+        _current = Validate(_persisted
             ? JsonSerializer.Deserialize<ApplicationSettings>(File.ReadAllText(_path), Json) ?? throw new InvalidOperationException("Application settings file is empty.")
-            : new ApplicationSettings
-            {
-                AllowedDatabaseHosts = config.GetSection("Security:AllowedDatabaseHosts").Get<string[]>() ?? [],
-                RegistrationEnabled = config.GetValue<bool>("AuthSettings:EnableRegisterModule"),
-                AutoConfirmAccounts = config.GetValue<bool>("AuthSettings:AutoConfirmAccount"),
-                DefaultRetentionDays = config.GetValue("Backups:DefaultRetentionDays", 4),
-                SchedulePollSeconds = config.GetValue("Backups:SchedulePollSeconds", 300),
-                BackupQueueDelaySeconds = config.GetValue("Backups:QueueDelaySeconds", 20),
-                BackupQueueSpacingSeconds = config.GetValue("Backups:QueueSpacingSeconds", 5),
-                AutomaticRestoreTests = config.GetValue("RestoreTests:Automatic", false)
-            });
+            : Defaults(config));
+        _reload = ChangeToken.OnChange(config.GetReloadToken, ReloadDefaults);
+    }
+
+    private static ApplicationSettings Defaults(IConfiguration config) => new()
+    {
+        AllowedDatabaseHosts = config.GetSection("Security:AllowedDatabaseHosts").Get<string[]>() ?? [],
+        RegistrationEnabled = config.GetValue<bool>("AuthSettings:EnableRegisterModule"),
+        AutoConfirmAccounts = config.GetValue<bool>("AuthSettings:AutoConfirmAccount"),
+        DefaultRetentionDays = config.GetValue("Backups:DefaultRetentionDays", 4),
+        SchedulePollSeconds = config.GetValue("Backups:SchedulePollSeconds", 300),
+        BackupQueueDelaySeconds = config.GetValue("Backups:QueueDelaySeconds", 20),
+        BackupQueueSpacingSeconds = config.GetValue("Backups:QueueSpacingSeconds", 5),
+        AutomaticRestoreTests = config.GetValue("RestoreTests:Automatic", false)
+    };
+
+    private void ReloadDefaults()
+    {
+        _gate.Wait();
+        try
+        {
+            // A saved admin snapshot deliberately overrides all deployment defaults.
+            if (_persisted) return;
+            var next = Validate(Defaults(_configuration)) with { Revision = _current.Revision };
+            if (JsonSerializer.Serialize(next, Json) == JsonSerializer.Serialize(_current, Json)) return;
+            Volatile.Write(ref _current, next with { Revision = Guid.NewGuid().ToString("N") });
+            _logger?.LogInformation("Reloaded deployment defaults for application settings");
+        }
+        catch (Exception error) when (error is ArgumentException or InvalidOperationException or FormatException)
+        { _logger?.LogWarning("Ignoring invalid application-setting defaults; keeping the last valid values"); }
+        finally { _gate.Release(); }
     }
 
     public ApplicationSettings Current
@@ -60,6 +87,7 @@ public sealed class FileApplicationSettings : IApplicationSettings, IDisposable
                     stream.Flush(flushToDisk: true);
                 }
                 File.Move(temporary, _path, overwrite: true);
+                _persisted = true;
                 Volatile.Write(ref _current, saved);
             }
             finally { if (File.Exists(temporary)) File.Delete(temporary); }
@@ -83,5 +111,5 @@ public sealed class FileApplicationSettings : IApplicationSettings, IDisposable
         return value with { AllowedDatabaseHosts = value.AllowedDatabaseHosts.Select(DatabaseHostPolicy.Normalize).Distinct(StringComparer.OrdinalIgnoreCase).Order(StringComparer.OrdinalIgnoreCase).ToArray() };
     }
 
-    public void Dispose() => _gate.Dispose();
+    public void Dispose() { _reload.Dispose(); _gate.Dispose(); }
 }

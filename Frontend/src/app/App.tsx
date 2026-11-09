@@ -1,3 +1,4 @@
+import logo from "../media/OctoBackupLogo.png";
 import { Component, useEffect, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import {
@@ -30,6 +31,7 @@ import { ErrorMessage, Loading } from "../shared/ui";
 import { AuthPage } from "../features/auth/AuthPage";
 import { Dashboard } from "../features/dashboard/Dashboard";
 import { ServersPage } from "../features/servers/ServersPage";
+import { useBackupQueue } from "../features/queue/useBackupQueue";
 import { SchedulesPage } from "../features/schedules/SchedulesPage";
 import { BackupsPage } from "../features/backups/BackupsPage";
 import { RestoreTestPage } from "../features/backups/RestoreTestPage";
@@ -193,9 +195,13 @@ function Workspace() {
         id="workspace-navigation"
         className={`sidebar ${open ? "is-open" : ""}`}
       >
-        <NavLink to="/" className="brand">
-          <Database /> OctoBackup
-          <span className="brand-dot" />
+        <NavLink
+          to="/"
+          className="brand logo-brand"
+          aria-label="OctoBackup overview"
+        >
+          <img src={logo} alt="" />
+          <span className="brand-name">OctoBackup</span>
         </NavLink>
         <div className="workspace-label">
           <span className="workspace-avatar">
@@ -205,7 +211,7 @@ function Workspace() {
             Backup workspace<small>Self-hosted infrastructure</small>
           </div>
         </div>
-        <nav aria-label="Main navigation">
+        <nav aria-label="Main navigation" onClick={() => setOpen(false)}>
           {navigation.map(({ to, label, icon: Icon }) => (
             <NavLink key={to} to={to} end={to === "/"}>
               <Icon size={19} />
@@ -314,7 +320,7 @@ function Workspace() {
           <QueueHero />
           <Routes>
             <Route path="/" element={<Dashboard admin={admin} />} />
-            <Route path="/servers" element={<ServersPage admin={admin} />} />
+            <Route path="/servers" element={<ServersRoute admin={admin} />} />
             <Route path="/schedules" element={<SchedulesPage />} />
             <Route path="/backups" element={<BackupsPage />} />
             <Route
@@ -340,4 +346,15 @@ function Workspace() {
 }
 function ShieldMark() {
   return <Database size={21} aria-hidden="true" />;
+}
+
+function ServersRoute({ admin }: { admin: boolean }) {
+  const queue = useBackupQueue();
+  return (
+    <ServersPage
+      admin={admin}
+      activeServerIds={queue.data?.activeServerIds ?? []}
+      queueUnavailable={queue.isPending || queue.isError}
+    />
+  );
 }

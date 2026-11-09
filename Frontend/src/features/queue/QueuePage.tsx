@@ -4,27 +4,26 @@ import { Link } from "react-router-dom";
 import { Play, RefreshCw, Trash2, X } from "lucide-react";
 import { api } from "../../shared/api";
 import { date } from "../../shared/types";
-import { Empty, ErrorMessage, Loading, PageHeading } from "../../shared/ui";
+import {
+  ConfirmDialog,
+  Empty,
+  ErrorMessage,
+  Loading,
+  PageHeading,
+} from "../../shared/ui";
 import { useBackupQueue, useQueueActions } from "./useBackupQueue";
 
 export function QueuePage() {
   const client = useQueryClient();
+  const [confirmation, setConfirmation] = useState<{
+    id: string;
+    kind: "Cancel" | "Delete" | "Retry";
+    serverId?: string;
+    name: string;
+  } | null>(null);
   const [page, setPage] = useState(0);
-  const [busy, setBusy] = useState<string | null>(null);
-  const [error, setError] = useState<unknown>();
   const query = useBackupQueue(page * 25);
   const act = useQueueActions();
-  async function action(id: string, kind: "Cancel" | "Delete") {
-    setError(undefined);
-    setBusy(id);
-    try {
-      await act(id, kind);
-    } catch (e) {
-      setError(e);
-    } finally {
-      setBusy(null);
-    }
-  }
   return (
     <>
       <PageHeading
@@ -37,7 +36,35 @@ export function QueuePage() {
           </button>
         }
       />
-      <ErrorMessage error={error ?? query.error} />
+      <ErrorMessage error={query.error} />
+      {confirmation && (
+        <ConfirmDialog
+          title={`${confirmation.kind === "Cancel" ? "Cancel backup" : confirmation.kind === "Retry" ? "Queue another backup" : "Remove request"} · ${confirmation.name}`}
+          label={
+            confirmation.kind === "Cancel"
+              ? "Cancel backup"
+              : confirmation.kind === "Retry"
+                ? "Queue another backup"
+                : "Remove request"
+          }
+          onClose={() => setConfirmation(null)}
+          onConfirm={async () => {
+            if (confirmation.kind === "Retry") {
+              await api("backups/PerformBackup", confirmation.serverId);
+              await client.invalidateQueries({ queryKey: ["backup-queue"] });
+            } else await act(confirmation.id, confirmation.kind);
+          }}
+        >
+          <p>Request {confirmation.id}</p>
+          <p>
+            {confirmation.kind === "Cancel"
+              ? "Stop this queued request or ask its running export to stop. A scheduled occurrence will be skipped."
+              : confirmation.kind === "Retry"
+                ? "Save a new delayed backup request for this connection. The previous request is retained."
+                : "Hide this request from the queue. Waiting work will be cancelled. Existing backup files remain available."}
+          </p>
+        </ConfirmDialog>
+      )}
       <p className="queue-help">
         Cancel stops a queued request immediately or asks a running export to
         stop. Remove cancels a waiting request and hides it from the list.
@@ -106,9 +133,12 @@ export function QueuePage() {
                             {request.canCancel && (
                               <button
                                 className="secondary small"
-                                disabled={busy !== null}
                                 onClick={() =>
-                                  void action(request.id, "Cancel")
+                                  setConfirmation({
+                                    id: request.id,
+                                    kind: "Cancel",
+                                    name: request.serverName,
+                                  })
                                 }
                                 aria-label={`Cancel backup for ${request.serverName}`}
                               >
@@ -119,9 +149,12 @@ export function QueuePage() {
                             {request.canDelete && (
                               <button
                                 className="icon-button danger-text"
-                                disabled={busy !== null}
                                 onClick={() =>
-                                  void action(request.id, "Delete")
+                                  setConfirmation({
+                                    id: request.id,
+                                    kind: "Delete",
+                                    name: request.serverName,
+                                  })
                                 }
                                 aria-label={`Remove request for ${request.serverName}`}
                                 title="Cancel if queued and remove from this list"
@@ -142,24 +175,14 @@ export function QueuePage() {
                                   className="icon-button"
                                   aria-label={`Queue another backup for ${request.serverName}`}
                                   title="Create a new delayed request"
-                                  disabled={busy !== null}
-                                  onClick={async () => {
-                                    setBusy(request.id);
-                                    setError(undefined);
-                                    try {
-                                      await api(
-                                        "backups/PerformBackup",
-                                        request.serverId,
-                                      );
-                                      await client.invalidateQueries({
-                                        queryKey: ["backup-queue"],
-                                      });
-                                    } catch (e) {
-                                      setError(e);
-                                    } finally {
-                                      setBusy(null);
-                                    }
-                                  }}
+                                  onClick={() =>
+                                    setConfirmation({
+                                      id: request.id,
+                                      serverId: request.serverId,
+                                      kind: "Retry",
+                                      name: request.serverName,
+                                    })
+                                  }
                                 >
                                   <Play size={15} />
                                 </button>

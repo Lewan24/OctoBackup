@@ -24,6 +24,12 @@ public sealed class DumpFailureException : InvalidOperationException
                 return "Database authentication was rejected. Check the saved username/password and the account's permitted connection hosts.";
             return "The backup account lacks required permissions. Ask the database administrator to check SELECT, SHOW VIEW, TRIGGER, EVENT and stored routine visibility grants for this database.";
         }
+        if (Contains(diagnostic, "server version mismatch", "server version:") && Contains(diagnostic, "pg_dump", "aborting"))
+            return "The installed pg_dump is older than the PostgreSQL server. Install a matching or newer client and set DatabaseTools:PostgresDumpPath on the API host.";
+        if (Contains(diagnostic, "password authentication failed", "no password supplied"))
+            return "PostgreSQL authentication was rejected. Check the saved username/password and pg_hba.conf rules for the API's network address.";
+        if (Contains(diagnostic, "no pg_hba.conf entry"))
+            return "PostgreSQL has no matching pg_hba.conf access rule for this API, database and transport. Check the server's client-address and TLS rules.";
         if (Contains(diagnostic, "column_statistics", "column statistics"))
             return "The dump client's column-statistics query is incompatible with this server. Use a compatible client with column statistics disabled.";
         if (Contains(diagnostic, "unknown variable", "unknown option", "unrecognized option"))
